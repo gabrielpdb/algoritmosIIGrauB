@@ -48,17 +48,100 @@ int produto_ordem_producao_count = 1;
 
 // Prototipação
 
-int menu() {
+int menu_inicial() {
 	int n;
 	
-	printf("Bem vindo ao %s!\n", NOME_PROJETO);
-	
+	printf("Bem vindo ao %s!\n\n", NOME_PROJETO);
+	printf("Escolha abaixo que área do sistema você deseja acessar: \n");
+	printf("1 - Produtos\n");
+	printf("2 - Estoque\n");
+	printf("3 - Pedidos\n");
+	printf("4 - Ordens de produção\n");
+	printf("0 - Sair\n");
+	scanf("%d", &n);
 	
 	return n;
 }
 
+int menu_produtos() {
+	int n;
+	
+	printf("%s - Produtos\n\n", NOME_PROJETO);
+	printf("O que você deseja fazer agora?\n");
+	printf("1 - Listar produtos\n");
+	printf("2 - Cadastrar novo produto\n");
+	printf("3 - Atualizar um produto\n");
+	printf("4 - Apagar um produto\n");
+	printf("0 - Voltar\n");
+	scanf("%d", &n);
+	
+	return n;
+}
+
+int menu_estoque() {
+	int n;
+	
+	printf("%s - Estoque\n\n", NOME_PROJETO);
+	printf("O que você deseja fazer agora?\n");
+	printf("1 - Listar estoque\n");
+	printf("2 - Ajustar estoque de produto\n");
+	printf("0 - Voltar\n");
+	scanf("%d", &n);
+	
+	return n;
+}
+
+int menu_pedidos() {
+	int n;
+	
+	printf("%s - Pedidos\n\n", NOME_PROJETO);
+	printf("O que você deseja fazer agora?\n");
+	printf("1 - Listar pedidos\n");
+	printf("2 - Cadastrar novo pedido\n");
+	printf("3 - Atualizar um pedido\n");
+	printf("4 - Apagar um pedido\n");
+	printf("5 - Finalizar um pedido\n");
+	printf("0 - Voltar\n");
+	scanf("%d", &n);
+	
+	return n;
+}
+
+int menu_op() {
+	int n;
+	
+	printf("%s - Ordens de produção\n\n", NOME_PROJETO);
+	printf("O que você deseja fazer agora?\n");
+	printf("1 - Listar ordens de produção\n");
+	printf("2 - Cadastrar nova ordem de produção\n");
+	printf("3 - Atualizar uma ordem de produção\n");
+	printf("4 - Apagar uma ordem de produção\n");
+	printf("5 - Finalizar uma ordem de produção\n");
+	printf("0 - Voltar\n");
+	scanf("%d", &n);
+	
+	return n;
+}
+
+void opcao_invalida() {
+	system("cls");
+	printf("Opção inválida, tente novamente!\n\n");
+}
+
+void valor_invalido(char mensagem[40]) {
+	system("cls");
+	if(strlen(mensagem) > 0) {
+		printf("%s", mensagem);
+	}else {
+		printf("Valor inválido, tente novamente!\n\n");	
+	}
+}
+
 int main (void) {
 	setlocale(LC_ALL, "");
+	
+	int escolha_menu;
+	bool isValid = true, repeat = true;
 	
 	PRODUTO produtos[100];
 	PEDIDO pedidos[200];
@@ -68,6 +151,68 @@ int main (void) {
 	PRODUTO_ORDEM_PRODUCAO produtos_op[1000];
 	
 	
+	// Interação com menus
+	do {
+		system("cls");
+		
+		if(!isValid){
+			opcao_invalida();
+		}
+		
+		isValid = true;
+		
+		switch(menu_inicial()) {
+			case 1:
+				do {
+					system("cls");
+		
+					if(!isValid){
+						opcao_invalida();
+					}
+					
+					isValid = true;
+					
+					switch(menu_produtos()) {
+						case 1:
+							//lista
+							break;
+						case 2:
+							//novo
+							break;
+						case 3: 
+							//atualiza
+							break;
+						case 4:
+							//apaga
+							break;
+						case 0:
+							isValid = true;
+							repeat = false;
+							break;
+						default:
+							isValid = false;
+					}
+				} while(!isValid || repeat);
+				repeat = true;
+				break;
+			case 2: 
+				menu_estoque();
+				break;
+			case 3: 
+				menu_pedidos();
+				break;
+			case 4: 
+				menu_op();
+				break;
+			case 0: 
+				isValid = true;
+				repeat = false;
+				break;
+			default: 
+				isValid = false;
+		}
+		
+	}while(!isValid || repeat);
 	
 
 	return 0;
