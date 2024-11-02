@@ -196,13 +196,103 @@ int main (void) {
 				repeat = true;
 				break;
 			case 2: 
-				menu_estoque();
+				do {
+					system("cls");
+		
+					if(!isValid){
+						opcao_invalida();
+					}
+					
+					isValid = true;
+					
+					switch(menu_estoque()) {
+						case 1:
+							//lista
+							break;
+						case 2:
+							//ajusta estoque produto
+							break;
+						case 0:
+							isValid = true;
+							repeat = false;
+							break;
+						default:
+							isValid = false;
+					}
+				} while(!isValid || repeat);
+				repeat = true;
 				break;
 			case 3: 
-				menu_pedidos();
+				do {
+					system("cls");
+		
+					if(!isValid){
+						opcao_invalida();
+					}
+					
+					isValid = true;
+					
+					switch(menu_pedidos()) {
+						case 1:
+							//lista
+							break;
+						case 2:
+							//novo
+							break;
+						case 3: 
+							//atualiza
+							break;
+						case 4:
+							//apaga
+							break;
+						case 5:
+							//finalizar pedido
+							break;
+						case 0:
+							isValid = true;
+							repeat = false;
+							break;
+						default:
+							isValid = false;
+					}
+				} while(!isValid || repeat);
+				repeat = true;
 				break;
 			case 4: 
-				menu_op();
+				do {
+					system("cls");
+		
+					if(!isValid){
+						opcao_invalida();
+					}
+					
+					isValid = true;
+					
+					switch(menu_op()) {
+						case 1:
+							//lista
+							break;
+						case 2:
+							//novo
+							break;
+						case 3: 
+							//atualiza
+							break;
+						case 4:
+							//apaga
+							break;
+						case 5:
+							//finalizar ordem
+							break;
+						case 0:
+							isValid = true;
+							repeat = false;
+							break;
+						default:
+							isValid = false;
+					}
+				} while(!isValid || repeat);
+				repeat = true;
 				break;
 			case 0: 
 				isValid = true;
@@ -214,6 +304,8 @@ int main (void) {
 		
 	}while(!isValid || repeat);
 	
+	system("cls");
+	printf("\n\n\nObrigado por usar o %s!!!", NOME_PROJETO);
 
 	return 0;
 }
