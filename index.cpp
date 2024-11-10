@@ -74,6 +74,7 @@ void save_pedido(PEDIDO pedido);
 void update_pedido(PEDIDO pedido);
 void delete_pedido(int id);
 bool check_pedido_existe(int id);
+PEDIDO get_pedido_by_id(int id);
 
 
 // Funções
@@ -284,6 +285,12 @@ void alterar_produto() { // Função que pede para o usuário as informações para a
 	printf("\nQual o ID do produto que deseja alterar?\n");
 	scanf("%d", &produto_atualizado.id);
 	
+	if(!check_produto_existe(produto_atualizado.id)) {
+		printf("\nProduto não encontrado!\n");
+		getch();
+		return;
+	}
+	
 	system("cls");
 	print_um_produto(produto_atualizado.id);
 	
@@ -322,6 +329,7 @@ void apagar_produto() { // Função que pede para o usuário qual produto quer apag
 	
 	if(!check_produto_existe(id)) {
 		printf("\nProduto não encontrado!\n");
+		getch();
 		return;
 	}
 	
@@ -534,7 +542,7 @@ void novo_pedido() { // Função que pede para o usuário as informações sobre o no
         	valor_invalido("Data inválida");
 		}
 		
-    } while((dia <= 0 || dia > 31) || (mes < 0 || mes > 11));
+    } while((dia <= 0 || dia > 31) || (mes < 0 || mes > 12));
     
     novoPedido.data_entrega.tm_year = ano - 1900;
     novoPedido.data_entrega.tm_mon = mes - 1;
@@ -568,6 +576,12 @@ void alterar_pedido() { // Função que pede para o usuário as informações para at
 	printf("\nQual o ID do pedido que deseja alterar?\n");
 	scanf("%d", &pedido_atualizado.id);
 	
+	if(!check_pedido_existe(pedido_atualizado.id)) {
+		printf("\nPedido não encontrado!\n");
+		getch();
+		return;
+	}
+	
 	system("cls");
 	print_pedido(pedido_atualizado.id);
 	
@@ -589,14 +603,103 @@ void alterar_pedido() { // Função que pede para o usuário as informações para at
         	valor_invalido("Data inválida");
 		}
 		
-    } while((dia <= 0 || dia > 31) || (mes < 0 || mes > 11));
+    } while((dia <= 0 || dia > 31) || (mes < 0 || mes > 12));
     
     pedido_atualizado.data_entrega.tm_year = ano - 1900;
     pedido_atualizado.data_entrega.tm_mon = mes - 1;
 	pedido_atualizado.data_entrega.tm_mday = dia;
 	
+	strcpy(pedido_atualizado.status, get_pedido_by_id(pedido_atualizado.id).status);
 	
 	update_pedido(pedido_atualizado);
+}
+
+void apagar_pedido() {
+	int id;
+	char confirm;
+	
+	if(!print_pedidos()) {
+		
+		
+		return;
+	}
+	
+	printf("\nQual o ID do pedido que deseja apagar?\n");
+	scanf("%d", &id);
+	
+	if(!check_pedido_existe(id)) {
+		printf("\nPedido não encontrado!\n");
+		getch();
+		return;
+	}
+	
+	system("cls");
+	
+	do {
+		printf("Tem certeza de que deseja excluir permanentemente o seguinte produto? (S - Sim / N - Não)\n\n");
+		print_pedido(id);
+		printf("\n");
+		confirm = toupper(getch());
+		
+		if(confirm != 'S' && confirm != 'N') {
+			opcao_invalida();
+		}
+	} while (confirm != 'S' && confirm != 'N');
+	
+	if(confirm == 'N') {
+		return;
+	} else if (confirm == 'S') {
+		delete_pedido(id);
+	}
+}
+
+bool check_pedido_existe(int id) { // Retorna true se encontrar o id no arquivo, false se não encontrar
+	FILE *arquivo = fopen("pedidos.dat", "rb");
+	
+	if(!arquivo) {
+		erro_arquivo();
+		return false;
+	}
+	
+	PEDIDO temp;
+	bool achou = false;
+	
+	while(fread(&temp, sizeof(PEDIDO), 1, arquivo)) {
+		if(temp.id == id) {
+			achou = true;
+			break;
+		}
+	}
+	
+	fclose(arquivo);
+	
+	return achou;
+}
+
+PEDIDO get_pedido_by_id(int id) {
+	FILE *arquivo = fopen("pedidos.dat", "rb");
+	
+	PEDIDO temp;
+	
+	if(!arquivo) {
+		erro_arquivo();
+		fclose(arquivo);
+		return temp;
+	}
+	
+
+	bool achou = false;
+	
+	while(fread(&temp, sizeof(PEDIDO), 1, arquivo)) {
+		if(temp.id == id) {
+			achou = true;
+			break;
+		}
+	}
+	
+	fclose(arquivo);
+	
+	return temp;
 }
 
 void save_pedido(PEDIDO pedido) { // Função que salva o pedido no arquivo
@@ -610,6 +713,46 @@ void save_pedido(PEDIDO pedido) { // Função que salva o pedido no arquivo
 	fwrite(&pedido, sizeof(PEDIDO), 1, arquivo);
 	fclose(arquivo);
 	save_increment("pedido", pedido.id);
+}
+
+void delete_pedido(int id) { // Apaga o pedido do arquivo
+	FILE *arquivo = fopen("pedidos.dat", "rb"); // Arquivo de pedidos
+	FILE *temp = fopen("temp.dat", "wb"); // Arquivo temporário para gravar pedidos sem o que deve ser apagado
+	
+	if(!arquivo || !temp) {
+		erro_arquivo();
+		return;
+	}
+	
+	PEDIDO pedido;
+	bool achou = false;
+	
+	// Lê todos os pedidos do arquivo original
+	while(fread(&pedido, sizeof(PEDIDO), 1, arquivo)) {
+		if(pedido.id == id) {
+			achou = true; // Encontrou o pedido, não gravou em temp
+		} else {
+			fwrite(&pedido, sizeof(PEDIDO), 1, temp); // Os que não tem o id de apagar são passados para temp
+		}
+	}
+	
+	fclose(arquivo);
+	fclose(temp);
+	
+	if(achou) {
+		// Se o pedido foi encontrado e excluído de temp, remove pedidos.dat e renomeia temp.dat para pedidos.dat
+		if (remove("pedidos.dat") == 0 && rename("temp.dat", "pedidos.dat") == 0) {
+			printf("\nPedido excluído com sucesso!\n");
+		} else {
+			erro_arquivo();
+		}
+	} else {
+		// Se o pedido não foi encontrado
+		printf("\nPedido não encontrado!\n");
+		remove("temp.dat"); // Caso o pedido não tenha sido encontrado, apaga temp.dat
+	}
+	
+	getch();
 }
 
 void update_pedido(PEDIDO pedido) { // Função que atualiza um pedido no arquivo
@@ -648,6 +791,7 @@ bool print_pedidos() { // Função que lista em tela todos os pedidos
 	
 	if(!arquivo){
 		erro_arquivo();
+		fclose(arquivo);
 		return false;
 	}
 	
@@ -663,13 +807,15 @@ bool print_pedidos() { // Função que lista em tela todos os pedidos
 		counter++;
 	}
 	
+	fclose(arquivo);
+	
 	if(counter == 0) {
 		printf("Nenhum pedido encontrado!");
 		getch();
 		return false;
 	}
 	
-	fclose(arquivo);
+
 	
 	return true;
 }
@@ -793,10 +939,10 @@ int main (void) {
 							novo_pedido();
 							break;
 						case 3: 
-							//atualiza
+							alterar_pedido();
 							break;
 						case 4:
-							//apaga
+							apagar_pedido();
 							break;
 						case 5:
 							//finalizar pedido
