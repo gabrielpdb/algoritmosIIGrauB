@@ -9,11 +9,14 @@
 #include<time.h> // Para lidar com data e hora
 
 #define NOME_PROJETO "Gerente de produção"
+#define MAX_PRODUTOS 1000
 
 typedef struct { // Definição de produto
 	int id, estoque;
 	char nome[40];
 } PRODUTO;
+
+PRODUTO produtos[MAX_PRODUTOS] = {0};
 
 typedef struct { // Definição de pedido
 	int id;
@@ -50,31 +53,17 @@ int menu_estoque();
 int menu_pedidos();
 int menu_op();
 void opcao_invalida();
-void valor_invalido(char mensagem[40]);
+void valor_invalido();
 void erro_arquivo();
 int get_increment(char counter[30]);
-void save_increment(char counter[30], int id);
-
 void novo_produto();
 void alterar_produto();
-void apagar_produto();
-bool print_produtos();
-void print_um_produto(int id);
+void print_produtos(PRODUTO produtos[MAX_PRODUTOS]);
+void print_um_produto(PRODUTO produtos[MAX_PRODUTOS], int id);
 void save_produto(PRODUTO produto);
+void load_produtos(PRODUTO produtos[MAX_PRODUTOS]);
 void update_produto(PRODUTO produto);
 void delete_produto(int id);
-bool check_produto_existe(int id);
-
-void novo_pedido();
-void alterar_pedido();
-void apagar_pedido();
-bool print_pedidos();
-void print_pedido(int id);
-void save_pedido(PEDIDO pedido);
-void update_pedido(PEDIDO pedido);
-void delete_pedido(int id);
-bool check_pedido_existe(int id);
-
 
 // Funções
 
@@ -162,22 +151,17 @@ void valor_invalido(char mensagem[40]) {
 	system("cls");
 	if(strlen(mensagem) > 0) {
 		printf("%s", mensagem);
-		printf("\n\n");
 	}else {
 		printf("Valor inválido, tente novamente!\n\n");	
 	}
 }
 
 void erro_arquivo() {
-	perror("\nErro ao abrir o arquivo");
+	printf("\n\nDeu erro abrindo o arquivo, tenta de novo aí\n\n");
 	system("pause");
 }
 
-void printDate(tm data) {
-	printf("%02d/%02d/%d", data.tm_mday, data.tm_mon + 1, data.tm_year + 1900);
-}
-
-int get_increment(char counter[30]) { // Essa função recebe o tipo de dado que será incrementado como string e retorna o último valor de incremento válido.
+int get_increment(const char *counter) { // Essa função recebe o tipo de dado que será incrementado como string e retorna o último valor de incremento válido.
 	INCREMENT incremento;
 	
 	FILE *arquivo = fopen("auto_increment.dat", "rb");
@@ -186,11 +170,11 @@ int get_increment(char counter[30]) { // Essa função recebe o tipo de dado que s
 		fread(&incremento, sizeof(INCREMENT), 1, arquivo);
 		fclose(arquivo);
 	} else {
-		incremento.ordem_producao_count = 0;
-		incremento.pedido_count = 0;
-		incremento.produto_count = 0;
-		incremento.produto_ordem_producao_count = 0;
-		incremento.produto_pedido_count = 0;
+		incremento.ordem_producao_count = 1;
+		incremento.pedido_count = 1;
+		incremento.produto_count = 1;
+		incremento.produto_ordem_producao_count = 1;
+		incremento.produto_pedido_count = 1;
 	}
 	
 	if(strcmp(counter, "produto") == 0)
@@ -207,7 +191,7 @@ int get_increment(char counter[30]) { // Essa função recebe o tipo de dado que s
 		printf("\n\n\nTipo de incremento inválido!\\n\n\n");
 }
 
-void save_increment(char counter[30], int id){ // Essa função recebe o tipo de dado que será incrementado e o valor do incremento a ser salvo
+void save_increment(const char *counter, int id){ // Essa função recebe o tipo de dado que será incrementado e o valor do incremento a ser salvo
 	INCREMENT incremento;
 	
 	FILE *arquivo = fopen("auto_increment.dat",  "rb+");
@@ -218,11 +202,11 @@ void save_increment(char counter[30], int id){ // Essa função recebe o tipo de d
 	} else {
 		arquivo = fopen("auto_increment.dat", "wb");
 		
-		incremento.ordem_producao_count = 0;
-		incremento.pedido_count = 0;
-		incremento.produto_count = 0;
-		incremento.produto_ordem_producao_count = 0;
-		incremento.produto_pedido_count = 0;
+		incremento.ordem_producao_count = 1;
+		incremento.pedido_count = 1;
+		incremento.produto_count = 1;
+		incremento.produto_ordem_producao_count = 1;
+		incremento.produto_pedido_count = 1;
 	}
 	
 	if(strcmp(counter, "produto") == 0)
@@ -242,31 +226,17 @@ void save_increment(char counter[30], int id){ // Essa função recebe o tipo de d
 	fclose(arquivo);
 }
 
-// Funções de produto
-
 void novo_produto() { // Função que pede para o usuário as informações sobre o novo produto
 	PRODUTO novoProduto;
 	
 	system("cls");
 	
-	do {
-		printf("Informe o nome do produto: ");
-		fflush(stdin);
-		gets(novoProduto.nome);
-		
-		if(strlen(novoProduto.nome) <= 0) {
-			valor_invalido("Nome não pode ser vazio!");
-		}
-	} while(strlen(novoProduto.nome) <= 0);
+	printf("Informe a descrição do produto: ");
+	fflush(stdin);
+	gets(novoProduto.nome);
 	
-	do {
-		printf("Quantidade em estoque do produto: ");
-		scanf("%d", &novoProduto.estoque);
-		
-		if(novoProduto.estoque < 0) {
-			valor_invalido("Estoque não pode ser negativo!");
-		}
-	}while (novoProduto.estoque < 0);
+	printf("Quantidade em estoque do produto: ");
+	scanf("%d", &novoProduto.estoque);
 	
 	novoProduto.id = get_increment("produto"); // Pega o último valor do incremento
 	novoProduto.id++; // Incrementa o incremento
@@ -274,63 +244,39 @@ void novo_produto() { // Função que pede para o usuário as informações sobre o n
 	save_produto(novoProduto); // Envia o produto para ser salvo
 }
 
-void alterar_produto() { // Função que pede para o usuário as informações para atualizar um produto
+void alterar_produto() {
 	PRODUTO produto_atualizado;
 	
-	if(!print_produtos()){
-		return;
-	}
-	
+	print_produtos(produtos);
 	printf("\nQual o ID do produto que deseja alterar?\n");
 	scanf("%d", &produto_atualizado.id);
 	
 	system("cls");
-	print_um_produto(produto_atualizado.id);
+	print_um_produto(produtos, produto_atualizado.id);
 	
-	do {
-		printf("Informe o novo nome dele: ");
-		fflush(stdin);
-		gets(produto_atualizado.nome);
-		
-		if(strlen(produto_atualizado.nome) <= 0){
-			valor_invalido("Nome não pode ser vazio!");
-		}	
-	} while(strlen(produto_atualizado.nome) <= 0);
-	
-	do {
-		printf("Estoque atual: ");
-		scanf("%d", &produto_atualizado.estoque);
-		
-		if(produto_atualizado.estoque < 0) {
-			valor_invalido("Estoque não pode ser negativo!");
-		}
-	} while(produto_atualizado.estoque < 0);
+	printf("Informe o novo nome dele: ");
+	fflush(stdin);
+	gets(produto_atualizado.nome);
+	printf("Qual o estoque dele?");
+	scanf("%d", &produto_atualizado.estoque);
 	
 	update_produto(produto_atualizado);	
 }
 
-void apagar_produto() { // Função que pede para o usuário qual produto quer apagar
+void apagar_produto() {
 	int id;
 	char confirm;
 	
-	if(!print_produtos()){
-		return;
-	}
-	
+	print_produtos(produtos);
 	printf("\nQual o ID do produto que deseja apagar?\n");
 	scanf("%d", &id);
-	
-	if(!check_produto_existe(id)) {
-		printf("\nProduto não encontrado!\n");
-		return;
-	}
 	
 	system("cls");
 		
 	do {
 		printf("Tem certeza de que deseja excluir permanentemente o seguinte produto? (S - Sim / N - Não)\n");
-		print_um_produto(id);
-		confirm = toupper(getch());
+		print_um_produto(produtos, id);
+		confirm = toupper(getche());
 		
 		if(confirm != 'S' && confirm != 'N') {
 			opcao_invalida();
@@ -342,6 +288,8 @@ void apagar_produto() { // Função que pede para o usuário qual produto quer apag
 	} else if(confirm == 'S') {
 		delete_produto(id);
 	}
+
+	
 }
 
 void save_produto(PRODUTO produto) { // Função que salva um produto no arquivo
@@ -357,27 +305,22 @@ void save_produto(PRODUTO produto) { // Função que salva um produto no arquivo
 	save_increment("produto", produto.id); // Salva o id do último produto como valor do incremento para ser usado no próximo produto cadastrado
 }
 
-bool check_produto_existe(int id) { // Retorna true se encontrar o id no arquivo, false se não encontrar
-	FILE *arquivo = fopen("produtos.dat", "rb");
+void load_produtos() { // Função que carrega os produtos do arquivo para o array de PRODUTO
+	memset(produtos, 0, sizeof(produtos));
+
+	FILE *arquivo = fopen("produtos.dat", "rb"); // Carrega o arquivo de produtos como leitura binária
+	int i = 0;
 	
 	if(!arquivo) {
 		erro_arquivo();
-		return false;
+		return;
 	}
 	
-	PRODUTO temp;
-	bool achou = false;
-	
-	while(fread(&temp, sizeof(PRODUTO), 1, arquivo)) {
-		if(temp.id == id) {
-			achou = true;
-			break;
-		}
+	while(fread(&produtos[i], sizeof(PRODUTO), 1, arquivo)) { // Enquanto houver linhas no arquivo, insere no array de produtos
+		i++;
 	}
 	
 	fclose(arquivo);
-	
-	return achou;
 }
 
 void update_produto(PRODUTO produto) { // Função que atualiza um produto no arquivo
@@ -393,7 +336,7 @@ void update_produto(PRODUTO produto) { // Função que atualiza um produto no arqu
 	
 	while(fread(&temp, sizeof(PRODUTO), 1, arquivo)) {
 		if (temp.id == produto.id) {
-			fseek(arquivo, -sizeof(PRODUTO), SEEK_CUR);
+			//fseek(arquivo, -sizeof(PRODUTO), SEEK_CUR);
 			fwrite(&produto, sizeof(PRODUTO), 1, arquivo);
 			achou = true;
 			break;
@@ -414,6 +357,8 @@ void delete_produto(int id) { // Função que apaga um produto do arquivo
 	FILE *arquivo = fopen("produtos.dat", "rb");
 	FILE *temp = fopen("temp.dat", "wb");
 	
+	printf("id: %d", id);
+	
 	if(!arquivo || !temp) {
 		erro_arquivo();
 		return;
@@ -422,12 +367,13 @@ void delete_produto(int id) { // Função que apaga um produto do arquivo
 	PRODUTO produto;
 	bool achou = false;
 	
-	// Lê todos os produtos do arquivo original
 	while(fread(&produto, sizeof(PRODUTO), 1, arquivo)) {
 		if(produto.id == id) {
-			achou = true; // Marca que encontrou o produto
+			
+			achou = true;
 		} else {
-			fwrite(&produto, sizeof(PRODUTO), 1, temp); // Escreve o produto no arquivo temporário
+			printf("\n%s", produto.nome);
+			fwrite(&produto, sizeof(PRODUTO), 1, temp);	
 		}
 	}
 	
@@ -435,271 +381,57 @@ void delete_produto(int id) { // Função que apaga um produto do arquivo
 	fclose(temp);
 	
 	if(achou) {
-		// Se o produto foi encontrado e excluído, renomeia o arquivo temporário para substituir o original
-		if (remove("produtos.dat") == 0) {
-			if (rename("temp.dat", "produtos.dat") == 0) {
-				printf("\nProduto excluído com sucesso!\n");
-			} else {
-				erro_arquivo();
-			}
-		} else {
-			erro_arquivo();
-		}
+		remove("produtos.dat");
+		rename("temp.dat", "produtos.dat");
+		printf("\nProduto deletado com sucesso!\n");
 	} else {
-		// Se o produto não foi encontrado
 		printf("\nProduto não encontrado!\n");
-		remove("temp.dat"); // Remove o arquivo temporário caso o produto não tenha sido encontrado
+		remove("temp.dat");
 	}
 	
 	getch();
 }
 
-bool print_produtos() { // Exibe na tela os produtos do arquivo de produtos
-	int counter = 0;
-	FILE *arquivo = fopen("produtos.dat", "rb");
-	
-	if(!arquivo){
-		erro_arquivo();
-		return false;
-	}
-	
-	PRODUTO produto;
-	
+
+void print_produtos() { // Exibe na tela os produtos carregados no array de produtos
+	load_produtos(produtos);
+
 	system("cls");
 	printf("Lista de produtos cadastrados: \n\n");
 
-	while(fread(&produto, sizeof(PRODUTO), 1, arquivo)) {
-		printf("%d: %s - %d unidades\n", produto.id, produto.nome, produto.estoque);
-		counter++;
+	int i = 0;
+	while(produtos[i].id != NULL) {
+		printf("%d: %s - %d unidades\n", produtos[i].id, produtos[i].nome, produtos[i].estoque);
+
+		i++;
 	}
 	
-	if(counter == 0) {
-		printf("Nenhum produto encontrado!");
-		getch();
-		return false;
-	}
-	
-	fclose(arquivo);
-	
-	return true;
 }
 
-void print_um_produto(int id) { // Exibe na tela um produto do arquivo filtrado pelo id
-	FILE *arquivo = fopen("produtos.dat", "rb");
+void print_um_produto(int id) {
+	load_produtos(produtos);
 	
-	if(!arquivo) {
-		erro_arquivo();
-		return;
-	}
-	
-	PRODUTO produto;
-	
-	while(fread(&produto, sizeof(PRODUTO), 1, arquivo)) {
-		if(produto.id == id) {
-			printf("%d: %s - %d unidades\n", produto.id, produto.nome, produto.estoque);
+	int i = 0;
+	while(produtos[i].id != NULL) {
+		if(id == produtos[i].id){
+			printf("%d: %s - %d unidades\n", produtos[i].id, produtos[i].nome, produtos[i].estoque);
+			break;	
 		}
+		i++;
 	}
-	
-	fclose(arquivo);
 }
 
-// Funções de pedido
-
-void novo_pedido() { // Função que pede para o usuário as informações sobre o novo pedido
-	PEDIDO novoPedido;
-	int dia, mes, ano;
-	/*
-		int id;
-		char status[20], nome_cliente[50];
-		struct tm data_entrega;
-	*/
-	
-	system("cls");
-	
-	do {
-		printf("Informe o nome do cliente: ");
-		fflush(stdin);
-		gets(novoPedido.nome_cliente);
-		
-		if(strlen(novoPedido.nome_cliente) <= 0) {
-			valor_invalido("Nome do cliente não pode ser vazio!");
-		}
-	} while(strlen(novoPedido.nome_cliente) <= 0);
-	
-	do {
-		printf("Previsão de entrega (DD/MM/AAAA): ");
-		scanf("%d/%d/%d", &dia, &mes, &ano);
-        
-        if((dia <= 0 || dia > 31) || (mes <= 0 || mes > 12)) {
-        	valor_invalido("Data inválida");
-		}
-		
-    } while((dia <= 0 || dia > 31) || (mes < 0 || mes > 11));
-    
-    novoPedido.data_entrega.tm_year = ano - 1900;
-    novoPedido.data_entrega.tm_mon = mes - 1;
-	novoPedido.data_entrega.tm_mday = dia;
-		
-	strcpy(novoPedido.status, "Em produção");
-	
-	novoPedido.id = get_increment("pedido"); // Pega o último valor do incremento
-	novoPedido.id++; // Incrementa o incremento
-	
-	printf("\n\nID: %d\n", novoPedido.id);
-	printf("Status: %s\n", novoPedido.status);
-	printf("Cliente: %s\n", novoPedido.nome_cliente);
-	printf("Data entrega: ");
-	printDate(novoPedido.data_entrega);
-	printf("\n");
-	
-	getch();
-	
-	save_pedido(novoPedido); // Envia o pedido para ser salvo;
-}
-
-void alterar_pedido() { // Função que pede para o usuário as informações para atualizar um pedido
-	int dia, mes, ano;
-	PEDIDO pedido_atualizado;
-	
-	if(!print_pedidos()){
-		return;
-	}
-	
-	printf("\nQual o ID do pedido que deseja alterar?\n");
-	scanf("%d", &pedido_atualizado.id);
-	
-	system("cls");
-	print_pedido(pedido_atualizado.id);
-	
-	do {
-		printf("Informe o nome do cliente: ");
-		fflush(stdin);
-		gets(pedido_atualizado.nome_cliente);
-		
-		if(strlen(pedido_atualizado.nome_cliente) <= 0) {
-			valor_invalido("Nome do cliente não pode ser vazio!");
-		}
-	} while(strlen(pedido_atualizado.nome_cliente) <= 0);
-	
-	do {
-		printf("Previsão de entrega (DD/MM/AAAA): ");
-		scanf("%d/%d/%d", &dia, &mes, &ano);
-        
-        if((dia <= 0 || dia > 31) || (mes <= 0 || mes > 12)) {
-        	valor_invalido("Data inválida");
-		}
-		
-    } while((dia <= 0 || dia > 31) || (mes < 0 || mes > 11));
-    
-    pedido_atualizado.data_entrega.tm_year = ano - 1900;
-    pedido_atualizado.data_entrega.tm_mon = mes - 1;
-	pedido_atualizado.data_entrega.tm_mday = dia;
-	
-	
-	update_pedido(pedido_atualizado);
-}
-
-void save_pedido(PEDIDO pedido) { // Função que salva o pedido no arquivo
-	FILE *arquivo = fopen("pedidos.dat", "ab");
-	
-	if(!arquivo) {
-		erro_arquivo();
-		return;
-	}
-	
-	fwrite(&pedido, sizeof(PEDIDO), 1, arquivo);
-	fclose(arquivo);
-	save_increment("pedido", pedido.id);
-}
-
-void update_pedido(PEDIDO pedido) { // Função que atualiza um pedido no arquivo
-	FILE *arquivo = fopen("pedidos.dat", "rb+");
-	
-	if(!arquivo) {
-		erro_arquivo();
-		return;
-	}
-	
-	PEDIDO temp;
-	bool achou = false;
-	
-	while(fread(&temp, sizeof(PEDIDO), 1, arquivo)) {
-		if (temp.id == pedido.id) {
-			fseek(arquivo, -sizeof(PEDIDO), SEEK_CUR);
-			fwrite(&pedido, sizeof(PEDIDO), 1, arquivo);
-			achou = true;
-			break;
-		}
-	}
-	
-	if(achou) {
-		printf("\Pedido atualizado com sucesso!\n");
-	}else {
-		printf("\Pedido não encontrado!\n");
-	}
-	getch();
-	
-	fclose(arquivo);
-}
-
-bool print_pedidos() { // Função que lista em tela todos os pedidos
-	int counter = 0;
-	FILE *arquivo = fopen("pedidos.dat", "rb");
-	
-	if(!arquivo){
-		erro_arquivo();
-		return false;
-	}
-	
-	PEDIDO pedido;
-	
-	system("cls");
-	printf("Lista de pedidos cadastrados: \n\n");
-	
-	while(fread(&pedido, sizeof(PEDIDO), 1, arquivo)) {
-		printf("%d: %s - ", pedido.id, pedido.nome_cliente);
-		printDate(pedido.data_entrega);
-		printf(" - %s\n", pedido.status);
-		counter++;
-	}
-	
-	if(counter == 0) {
-		printf("Nenhum pedido encontrado!");
-		getch();
-		return false;
-	}
-	
-	fclose(arquivo);
-	
-	return true;
-}
-
-void print_pedido(int id)  { // Função que exibe na tela um pedido pelo id informado
-	FILE *arquivo = fopen("pedidos.dat", "rb");
-	
-	if(!arquivo) {
-		erro_arquivo();
-		return;
-	}
-	
-	PEDIDO pedido;
-	
-	while(fread(&pedido, sizeof(PEDIDO), 1, arquivo)) {
-		if(pedido.id == id) {
-			printf("%d: %s - ", pedido.id, pedido.nome_cliente);
-			printDate(pedido.data_entrega);
-			printf(" - %s\n", pedido.status);
-		}
-	}
-	
-	fclose(arquivo);
-}
 
 int main (void) {
 	setlocale(LC_ALL, "");
 	
 	int escolha_menu;
 	bool isValid = true, repeat = true;
+	
+	PEDIDO pedidos[200] = {0};
+	PRODUTO_PEDIDO produtos_pedido[1000] = {0};
+	ORDEM_PRODUCAO ordens_producao[100] = {0};
+	PRODUTO_ORDEM_PRODUCAO produtos_op[1000] = {0};
 	
 	// Interação com menus
 	do {
@@ -759,7 +491,6 @@ int main (void) {
 					switch(menu_estoque()) {
 						case 1:
 							print_produtos();
-							getch();
 							break;
 						case 2:
 							//ajusta estoque produto
@@ -786,11 +517,10 @@ int main (void) {
 					
 					switch(menu_pedidos()) {
 						case 1:
-							print_pedidos();
-							getch();
+							//lista
 							break;
 						case 2:
-							novo_pedido();
+							//novo
 							break;
 						case 3: 
 							//atualiza
@@ -862,3 +592,36 @@ int main (void) {
 
 	return 0;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
