@@ -553,15 +553,6 @@ void novo_pedido() { // Função que pede para o usuário as informações sobre o no
 	novoPedido.id = get_increment("pedido"); // Pega o último valor do incremento
 	novoPedido.id++; // Incrementa o incremento
 	
-	printf("\n\nID: %d\n", novoPedido.id);
-	printf("Status: %s\n", novoPedido.status);
-	printf("Cliente: %s\n", novoPedido.nome_cliente);
-	printf("Data entrega: ");
-	printDate(novoPedido.data_entrega);
-	printf("\n");
-	
-	getch();
-	
 	save_pedido(novoPedido); // Envia o pedido para ser salvo;
 }
 
