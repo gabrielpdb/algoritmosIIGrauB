@@ -88,6 +88,7 @@ bool print_produtos_pedido(int pedidoID);
 int get_quantidade_nao_finalizada_pedido_by_produto_id(int produtoID);
 void delete_todos_produtos_by_pedido_id(int pedidoID);
 void finaliza_todos_produtos_by_pedido_id(int pedidoID);
+bool check_produto_esta_em_pedido(int produtoID);
 
 void gerar_op_by_pedido_id(int pedidoID, char nomeCliente[50]);
 void listar_ops();
@@ -107,6 +108,7 @@ bool print_produtos_op(int opID);
 void update_produto_op(ORDEM_PRODUCAO op);
 void delete_todos_produtos_by_op_id(int opID);
 void finaliza_todos_produtos_by_op_id(int opID);
+bool check_produto_esta_em_op(int produtoID);
 
 // Funções
 
@@ -362,6 +364,18 @@ void apagar_produto() { // Função que pede para o usuário qual produto quer apag
 	
 	if(!check_produto_existe(id)) {
 		printf("\nProduto não encontrado!\n");
+		getch();
+		return;
+	}
+	
+	if(check_produto_esta_em_pedido(id)) {
+		printf("\nProduto está inserido em algum pedido, por isso não pode ser excluído!\n");
+		getch();
+		return;
+	}
+	
+	if(check_produto_esta_em_op(id)) {
+		printf("\nProduto está inserido em alguma ordem de produção, por isso não pode ser excluído!\n");
 		getch();
 		return;
 	}
@@ -1160,6 +1174,29 @@ void finaliza_todos_produtos_by_pedido_id(int pedidoID) {
 	getch();
 }
 
+bool check_produto_esta_em_pedido(int produtoID) { // Retorna true se o produto estiver relacionado em algum pedido
+	FILE *arquivo = fopen("produtos_pedidos.dat", "rb");
+	
+	if(!arquivo) {
+		erro_arquivo();
+		return false;
+	}
+	
+	PRODUTO_PEDIDO temp;
+	bool achou = false;
+	
+	while(fread(&temp, sizeof(PRODUTO_PEDIDO), 1, arquivo)) {
+		if(temp.produto_id == produtoID) {
+			achou = true;
+			break;
+		}
+	}
+	
+	fclose(arquivo);
+	
+	return achou;
+}
+
 // Funções de ordem de produção
 
 void gerar_op_by_pedido_id(int pedidoID, char nomeCliente[50]) {
@@ -1668,6 +1705,29 @@ void finaliza_todos_produtos_by_op_id(int opID) {
 	getch();
 }
 
+bool check_produto_esta_em_op(int produtoID) { // Retorna true se o produto estiver relacionado em alguma ordem de produção
+	FILE *arquivo = fopen("produtos_ordens_producao.dat", "rb");
+	
+	if(!arquivo) {
+		erro_arquivo();
+		return false;
+	}
+	
+	PRODUTO_ORDEM_PRODUCAO temp;
+	bool achou = false;
+	
+	while(fread(&temp, sizeof(PRODUTO_ORDEM_PRODUCAO), 1, arquivo)) {
+		if(temp.produto_id == produtoID) {
+			achou = true;
+			break;
+		}
+	}
+	
+	fclose(arquivo);
+	
+	return achou;
+}
+
 // MAIN
 
 int main (void) {
@@ -1834,7 +1894,7 @@ int main (void) {
 	}while(!isValid || repeat);
 	
 	system("cls");
-	printf("\n\n\nObrigado por usar o %s!!!", NOME_PROJETO);
+	printf("Obrigado por usar o %s!!!", NOME_PROJETO);
 
 	return 0;
 }
