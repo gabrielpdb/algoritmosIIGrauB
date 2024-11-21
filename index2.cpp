@@ -1099,7 +1099,7 @@ void gerar_op_by_pedido_id(int pedidoID) {
 			printf("%d\n", ops);
 			int pedidos = get_quantidade_nao_finalizada_pedido_by_produto_id(temp_produto_pedido.produto_id);
 			printf("%d\n", pedidos);
-			int quantidade = (pedidos - estoque - ops) * -1;
+			int quantidade = pedidos - estoque - ops;
 			printf("%d\n", quantidade);
 			if(quantidade > 0) {
 				
