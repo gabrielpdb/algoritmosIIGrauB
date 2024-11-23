@@ -13,7 +13,12 @@
 typedef struct { // Definição de produto
 	int id, estoque;
 	char nome[40];
+	//bool kit;
 } PRODUTO;
+
+typedef struct { // Definição dos produtos que compõem um kit
+	int id, kit_id, produto_id, quantidade;
+} PRODUTO_KIT;
 
 typedef struct { // Definição de pedido
 	int id;
@@ -52,6 +57,7 @@ int menu_estoque();
 int menu_pedidos();
 int menu_alterar_pedido(PEDIDO pedido);
 int menu_op();
+int menu_alterar_op(ORDEM_PRODUCAO op);
 void opcao_invalida();
 void valor_invalido(char mensagem[40]);
 void erro_arquivo();
@@ -119,6 +125,8 @@ bool check_op_finalizada(int id);
 void update_op(ORDEM_PRODUCAO op, char action[20]);
 void nova_op();
 void save_op(ORDEM_PRODUCAO op);
+void alterar_op();
+void alterar_infos_op(int id);
 
 // Produtos de ordens de produção
 void cadastrar_produtos_op(int opID, char nome[50]);
@@ -129,6 +137,13 @@ void update_produto_op(ORDEM_PRODUCAO op);
 void delete_todos_produtos_by_op_id(int opID);
 void finaliza_todos_produtos_by_op_id(int opID);
 bool check_produto_esta_em_op(int produtoID);
+void alterar_produtos_op(int opID);
+void apagar_produto_op(int opID);
+void delete_produto_op(int id);
+bool check_produto_da_op(int id, int opID);
+bool check_produto_op_existe(int id);
+PRODUTO_ORDEM_PRODUCAO get_produto_op_by_id(int id);
+void print_produto_op(int id);
 
 // Funções
 
@@ -204,6 +219,21 @@ int menu_op() {
 	printf("4 - Atualizar uma ordem de produção\n");
 	printf("5 - Apagar uma ordem de produção\n");
 	printf("6 - Finalizar uma ordem de produção\n\n");
+	printf("0 - Voltar\n");
+	scanf("%d", &n);
+	
+	return n;
+}
+
+int menu_alterar_op(ORDEM_PRODUCAO op) {
+	int n;
+	
+	printf("%s - Alterar ordem de produção: %d - %s\n\n", NOME_PROJETO, op.id, op.nome);
+	printf("O que deseja fazer agora?\n\n");
+	printf("1 - Alterar informações da ordem de produção\n");
+	printf("2 - Alterar produto da ordem de produção\n");
+	printf("3 - Adicionar novo produto a ordem de produção\n");
+	printf("4 - Apagar produto da ordem de produção\n\n");
 	printf("0 - Voltar\n");
 	scanf("%d", &n);
 	
@@ -1734,7 +1764,7 @@ bool print_ops(char status[20]) { // Função que lista em tela todas as ordens de
 	printf("Lista de ordens de produção cadastradas: \n\n");
 	
 	while(fread(&op, sizeof(ORDEM_PRODUCAO), 1, arquivo)) {
-		if(strcmp(status, op.status) ==0) {
+		if(strcmp(status, op.status) == 0) {
 			printf("%d: %s - %s\n", op.id, op.nome, op.status);
 			counter++;
 		} else if (strcmp(status, "Todas") == 0) {
@@ -1977,6 +2007,82 @@ void end_op(int id) { // Finaliza a ordem de produção e atualiza o estoque
 	getch();
 }
 
+void alterar_op() { // Função que pede para o usuário as informações para atualizar uma ordem de produção
+	bool isValid = true, repeat = true;
+	int id;
+	
+	if(!print_ops("Todas")) {
+		return;
+	}
+	
+	printf("\nQual o ID da ordem de produção que deseja atualizar? (0 - Voltar)\n");
+	scanf("%d", &id);
+	
+	if(id == 0) {
+		return;
+	}
+	
+	if(!check_op_existe(id)) {
+		printf("\Ordem de produção não encontrada!\n");
+		getch();
+		return;
+	}
+	
+	ORDEM_PRODUCAO op = get_op_by_id(id);
+	
+	do {
+		system("cls");
+
+		if(!isValid){
+			opcao_invalida();
+		}
+		
+		isValid = true;
+		
+		switch(menu_alterar_op(op)) {
+			case 1:
+				alterar_infos_op(op.id);
+				break;
+			case 2:
+				alterar_produtos_op(op.id);
+				break;
+			case 3:
+				cadastrar_produtos_op(op.id, op.nome);
+				break;
+			case 4: 
+				apagar_produto_op(op.id);
+				break;
+			case 0:
+				isValid = true;
+				repeat = false;
+				break;
+			default:
+				isValid = false;
+		}
+	} while(!isValid || repeat);
+}
+
+void alterar_infos_op(int id) { // Função que pede para o usuário as informações para atualizar as informações de uma ordem de produção
+	ORDEM_PRODUCAO op_atualizada = get_op_by_id(id);
+	
+	system("cls");
+	print_op(id);
+	
+	do {
+		printf("\nInforme o nome da ordem de produção: ");
+		fflush(stdin);
+		gets(op_atualizada.nome);
+		
+		if(strlen(op_atualizada.nome) <= 0) {
+			system("cls");
+			valor_invalido("Nome da ordem de produção não pode ser vazio!");
+		}
+	} while(strlen(op_atualizada.nome) <= 0);
+	
+	update_op(op_atualizada, "");
+	getch();
+}
+
 // Funções de produtos de ordem de produção
 
 void cadastrar_produtos_op(int opID, char nome[50]) {
@@ -2071,7 +2177,7 @@ bool print_produtos_op(int opID) {
 	while(fread(&temp, sizeof(PRODUTO_ORDEM_PRODUCAO), 1, arquivo)) {
 		if(temp.op_id == opID) {
 			PRODUTO produto = get_produto_by_id(temp.produto_id);
-			printf("%s: %d unidades\n", produto.nome, temp.quantidade);
+			printf("%d: %s - %d unidades\n", temp.id, produto.nome, temp.quantidade);
 			counter++;
 		}
 	}
@@ -2087,7 +2193,7 @@ bool print_produtos_op(int opID) {
 	return true;
 }
 
-void update_produto_op(ORDEM_PRODUCAO op) { // Função que atualiza um produto da ordem no arquivo
+void update_produto_op(PRODUTO_ORDEM_PRODUCAO op) { // Função que atualiza um produto da ordem no arquivo
 	FILE *arquivo = fopen("produtos_ordens_producao.dat", "rb+");
 	
 	if(!arquivo) {
@@ -2205,6 +2311,233 @@ bool check_produto_esta_em_op(int produtoID) { // Retorna true se o produto esti
 	return achou;
 }
 
+void alterar_produtos_op(int opID) {
+	PRODUTO_ORDEM_PRODUCAO produto;
+	int id;
+	bool valido = true;
+	
+	system("cls");
+	
+	do {
+		valido = true;
+			
+		if(!print_produtos_op(opID)){
+			return;
+		}
+			
+		printf("\nQual o ID do produto que deseja alterar? (0 - Voltar)\n");
+		scanf("%d", &id);
+		
+		if(id == 0) {
+			return;
+		}
+		
+		if(!check_produto_op_existe(id) || !check_produto_da_op(id, opID)) {
+			system("cls");
+			valor_invalido("Produto inválido!");
+			valido = false;
+		} else {
+			produto = get_produto_op_by_id(id);
+		}
+		
+	} while (!valido);
+	
+	do {
+		system("cls");
+		print_produto_op(produto.id);
+		
+		printf("\n\nInforme a quantidade atualizada: ");
+		scanf("%d", &produto.quantidade);
+		
+		if(produto.quantidade <= 0) {
+			system("cls");
+			valor_invalido("Informe uma quantidade válida!");
+		}
+	} while (produto.quantidade <= 0);
+	
+	update_produto_op(produto);
+}
+
+void apagar_produto_op(int opID) {
+	char confirm;
+	
+	int id;
+	bool valido = true;
+	
+	system("cls");
+	
+	do {
+		valido = true;
+			
+		if(!print_produtos_op(opID)){
+			return;
+		}
+			
+		printf("\nQual o ID do produto que deseja apagar da ordem de produção? (0 - Voltar)\n");
+		scanf("%d", &id);
+		
+		if(id == 0) {
+			return;
+		}
+		
+		if(!check_produto_op_existe(id) || !check_produto_da_op(id, opID)) {
+			valor_invalido("Produto inválido!");
+			valido = false;
+		}
+		
+	} while (!valido);
+	
+	system("cls");
+	
+	do {
+		printf("Tem certeza de que deseja excluir permanentemente o seguinte produto? (S - Sim / N - Não)\n\n");
+		print_produto_op(id);
+		printf("\n");
+		confirm = toupper(getch());
+		
+		if(confirm != 'S' && confirm != 'N') {
+			opcao_invalida();
+		}
+	} while (confirm != 'S' && confirm != 'N');
+	
+	if(confirm == 'N') {
+		return;
+	} else if (confirm == 'S') {
+		delete_produto_op(id);
+	}
+}
+
+void delete_produto_op(int id) { // Apaga o produto de ordem de produção do arquivo
+	FILE *arquivo = fopen("produtos_ordens_producao.dat", "rb"); // Arquivo de produtos de ordem de produção
+	FILE *temp = fopen("temp.dat", "wb"); // Arquivo temporário para grava os produtos de op sem o que deve ser apagado
+	
+	if(!arquivo || !temp) {
+		erro_arquivo();
+		return;
+	}
+	
+	PRODUTO_ORDEM_PRODUCAO produto;
+	bool achou = false;
+	
+	// Lê todos os produtos do arquivo original
+	while(fread(&produto, sizeof(PRODUTO_ORDEM_PRODUCAO), 1, arquivo)) {
+		if(produto.id == id) {
+			achou = true; // Encontrou o produto, não gravou em temp
+		} else {
+			fwrite(&produto, sizeof(PRODUTO_ORDEM_PRODUCAO), 1, temp); // Os que não tem o id de apagar são passados para temp
+		}
+	}
+	
+	fclose(arquivo);
+	fclose(temp);
+	
+	if(achou) {
+		// Se o pedido foi encontrado e excluído de temp, remove pedidos.dat e renomeia temp.dat para pedidos.dat
+		if (remove("produtos_ordens_producao.dat") == 0 && rename("temp.dat", "produtos_ordens_producao.dat") == 0) {
+			printf("\nProduto excluído com sucesso!\n");
+		} else {
+			erro_arquivo();
+		}
+	} else {
+		// Se o produto não foi encontrado
+		printf("\nProduto não encontrado!\n");
+		remove("temp.dat"); // Caso o produto não tenha sido encontrado, apaga temp.dat
+	}
+	
+	getch();
+}
+
+bool check_produto_op_existe(int id) { // Retorna true se encontrar o id no arquivo, false se não encontrar
+	FILE *arquivo = fopen("produtos_ordens_producao.dat", "rb");
+	
+	if(!arquivo) {
+		erro_arquivo();
+		return false;
+	}
+	
+	PRODUTO_ORDEM_PRODUCAO temp;
+	bool achou = false;
+	
+	while(fread(&temp, sizeof(PRODUTO_ORDEM_PRODUCAO), 1, arquivo)) {
+		if(temp.id == id) {
+			achou = true;
+			break;
+		}
+	}
+	
+	fclose(arquivo);
+	
+	return achou;
+}
+
+bool check_produto_da_op(int id, int opID) { // Retorna true se o id pertence a op, false se não
+	FILE *arquivo = fopen("produtos_ordens_producao.dat", "rb");
+	
+	if(!arquivo) {
+		erro_arquivo();
+		return false;
+	}
+	
+	PRODUTO_ORDEM_PRODUCAO temp;
+	bool achou = false;
+	
+	while(fread(&temp, sizeof(PRODUTO_ORDEM_PRODUCAO), 1, arquivo)) {
+		if(temp.id == id && temp.op_id == opID) {
+			achou = true;
+		}
+	}
+	
+	fclose(arquivo);
+	
+	return achou;
+}
+
+PRODUTO_ORDEM_PRODUCAO get_produto_op_by_id(int id) {
+	FILE *arquivo = fopen("produtos_ordens_producao.dat", "rb");
+	
+	PRODUTO_ORDEM_PRODUCAO temp;
+	
+	if(!arquivo) {
+		erro_arquivo();
+		return temp;
+	}
+
+	bool achou = false;
+	
+	while(fread(&temp, sizeof(PRODUTO_ORDEM_PRODUCAO), 1, arquivo)) {
+		if(temp.id == id) {
+			achou = true;
+			break;
+		}
+	}
+	
+	fclose(arquivo);
+	
+	return temp;
+}
+
+void print_produto_op(int id)  { // Função que exibe na tela um produto da op pelo id informado
+	FILE *produtos = fopen("produtos_ordens_producao.dat", "rb");
+	
+	if(!produtos) {
+		erro_arquivo();
+		return;
+	}
+	
+	PRODUTO_ORDEM_PRODUCAO temp;
+	
+	while(fread(&temp, sizeof(PRODUTO_ORDEM_PRODUCAO), 1, produtos)) {
+		if(temp.id == id) {
+			PRODUTO produto = get_produto_by_id(temp.produto_id);
+			printf("%d: %s - %d unidades", temp.id, produto.nome, temp.quantidade);
+			break;
+		}
+	}
+	
+	fclose(produtos);
+}
+
+
 // MAIN
 
 int main (void) {
@@ -2319,7 +2652,7 @@ int main (void) {
 							nova_op();
 							break;
 						case 4:
-							//alterar_op();
+							alterar_op();
 							break;
 						case 5:
 							apagar_op();
