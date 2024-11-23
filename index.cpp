@@ -50,6 +50,7 @@ int menu_inicial();
 int menu_produtos();
 int menu_estoque();
 int menu_pedidos();
+int menu_alterar_pedido(PEDIDO pedido);
 int menu_op();
 void opcao_invalida();
 void valor_invalido(char mensagem[40]);
@@ -57,6 +58,7 @@ void erro_arquivo();
 int get_increment(char counter[30]);
 void save_increment(char counter[30], int id);
 
+// Produtos
 void novo_produto();
 void alterar_produto();
 void apagar_produto();
@@ -68,6 +70,7 @@ void delete_produto(int id);
 bool check_produto_existe(int id);
 PRODUTO get_produto_by_id(int id);
 
+// Pedidos
 void novo_pedido();
 void alterar_pedido();
 void apagar_pedido();
@@ -81,16 +84,27 @@ PEDIDO get_pedido_by_id(int id);
 void listar_pedidos(char status[20]);
 void finalizar_pedido();
 void end_pedido(int id);
+void alterar_infos_pedido(int id);
 
+// Produtos de pedidos
 void cadastrar_produtos_pedido(int pedidoID, char nomeCliente[50]);
 void save_produto_pedido(int pedidoID, int produtoID, int quantidade);
+void alterar_produtos_pedido(int pedidoID);
+void update_produto_pedido(PRODUTO_PEDIDO produto);
 bool print_produtos_pedido(int pedidoID);
 int get_quantidade_nao_finalizada_pedido_by_produto_id(int produtoID);
 void delete_todos_produtos_by_pedido_id(int pedidoID);
 void finaliza_todos_produtos_by_pedido_id(int pedidoID);
 bool check_produto_esta_em_pedido(int produtoID);
 bool check_estoque_valido_produtos_pedidos(int pedidoID);
+void apagar_produto_pedido(int pedidoID);
+void delete_produto_pedido(int id);
+bool check_produto_pedido_existe(int id);
+bool check_produto_do_pedido(int id, int pedidoID);
+PRODUTO_PEDIDO get_produto_pedido_by_id(int id);
+void print_produto_pedido(int id);
 
+// Ordens de produção
 void gerar_op_by_pedido_id(int pedidoID, char nomeCliente[50]);
 void listar_ops(char status[20]);
 bool check_op_existe(int id);
@@ -106,6 +120,7 @@ void update_op(ORDEM_PRODUCAO op, char action[20]);
 void nova_op();
 void save_op(ORDEM_PRODUCAO op);
 
+// Produtos de ordens de produção
 void cadastrar_produtos_op(int opID, char nome[50]);
 void save_produto_op(int opID, int produtoID, int quantidade);
 int get_quantidade_nao_finalizada_op_by_produto_id(int produtoID);
@@ -157,6 +172,21 @@ int menu_pedidos() {
 	printf("4 - Atualizar um pedido\n");
 	printf("5 - Apagar um pedido\n");
 	printf("6 - Finalizar um pedido\n\n");
+	printf("0 - Voltar\n");
+	scanf("%d", &n);
+	
+	return n;
+}
+
+int menu_alterar_pedido(PEDIDO pedido) {
+	int n;
+	
+	printf("%s - Alterar pedido: %d - %s\n\n", NOME_PROJETO, pedido.id, pedido.nome_cliente);
+	printf("O que deseja fazer agora?\n\n");
+	printf("1 - Alterar informações do pedido\n");
+	printf("2 - Alterar produto do pedido\n");
+	printf("3 - Adicionar novo produto ao pedido\n");
+	printf("4 - Apagar produto do pedido\n\n");
 	printf("0 - Voltar\n");
 	scanf("%d", &n);
 	
@@ -655,31 +685,69 @@ void novo_pedido() { // Função que pede para o usuário as informações sobre o no
 }
 
 void alterar_pedido() { // Função que pede para o usuário as informações para atualizar um pedido
-	int dia, mes, ano;
-	PEDIDO pedido_atualizado;
+	bool isValid = true, repeat = true;
+	int id;
 	
-	if(!print_pedidos("Todos")){
+	if(!print_pedidos("Todos")) {
 		return;
 	}
 	
-	printf("\nQual o ID do pedido que deseja alterar? (0 - Voltar)\n");
-	scanf("%d", &pedido_atualizado.id);
+	printf("\nQual o ID do pedido que deseja atualizar? (0 - Voltar)\n");
+	scanf("%d", &id);
 	
-	if(pedido_atualizado.id == 0) {
+	if(id == 0) {
 		return;
 	}
 	
-	if(!check_pedido_existe(pedido_atualizado.id)) {
+	if(!check_pedido_existe(id)) {
 		printf("\nPedido não encontrado!\n");
 		getch();
 		return;
 	}
 	
-	system("cls");
-	print_pedido(pedido_atualizado.id);
+	PEDIDO pedido = get_pedido_by_id(id);
 	
 	do {
-		printf("Informe o nome do cliente: ");
+		system("cls");
+
+		if(!isValid){
+			opcao_invalida();
+		}
+		
+		isValid = true;
+		
+		switch(menu_alterar_pedido(pedido)) {
+			case 1:
+				alterar_infos_pedido(pedido.id);
+				break;
+			case 2:
+				alterar_produtos_pedido(pedido.id);
+				break;
+			case 3:
+				cadastrar_produtos_pedido(pedido.id, pedido.nome_cliente);
+				break;
+			case 4: 
+				apagar_produto_pedido(pedido.id);
+				break;
+			case 0:
+				isValid = true;
+				repeat = false;
+				break;
+			default:
+				isValid = false;
+		}
+	} while(!isValid || repeat);
+}
+
+void alterar_infos_pedido(int id) { // Função que pede para o usuário as informações para atualizar as informações de um pedido
+	int dia, mes, ano;
+	PEDIDO pedido_atualizado = get_pedido_by_id(id);
+	
+	system("cls");
+	print_pedido(id);
+	
+	do {
+		printf("\nInforme o nome do cliente: ");
 		fflush(stdin);
 		gets(pedido_atualizado.nome_cliente);
 		
@@ -1083,9 +1151,146 @@ void save_produto_pedido(int pedidoID, int produtoID, int quantidade) {
 	save_increment("produto_pedido", produto.id);
 }
 
+void alterar_produtos_pedido(int pedidoID) {
+	PRODUTO_PEDIDO produto;
+	int id;
+	bool valido = true;
+	
+	system("cls");
+	
+	do {
+		valido = true;
+			
+		if(!print_produtos_pedido(pedidoID)){
+			return;
+		}
+			
+		printf("\nQual o ID do produto que deseja alterar? (0 - Voltar)\n");
+		scanf("%d", &id);
+		
+		if(id == 0) {
+			return;
+		}
+		
+		if(!check_produto_pedido_existe(id) || !check_produto_do_pedido(id, pedidoID)) {
+			system("cls");
+			valor_invalido("Produto inválido!");
+			valido = false;
+		} else {
+			produto = get_produto_pedido_by_id(id);
+		}
+		
+	} while (!valido);
+	
+	do {
+		system("cls");
+		print_produto_pedido(produto.id);
+		
+		printf("\n\nInforme a quantidade atualizada: ");
+		scanf("%d", &produto.quantidade);
+		
+		if(produto.quantidade <= 0) {
+			system("cls");
+			valor_invalido("Informe uma quantidade válida!");
+		}
+	} while (produto.quantidade <= 0);
+	
+	update_produto_pedido(produto);
+}
+
+bool check_produto_pedido_existe(int id) { // Retorna true se encontrar o id no arquivo, false se não encontrar
+	FILE *arquivo = fopen("produtos_pedidos.dat", "rb");
+	
+	if(!arquivo) {
+		erro_arquivo();
+		return false;
+	}
+	
+	PRODUTO_PEDIDO temp;
+	bool achou = false;
+	
+	while(fread(&temp, sizeof(PRODUTO_PEDIDO), 1, arquivo)) {
+		if(temp.id == id) {
+			achou = true;
+			break;
+		}
+	}
+	
+	fclose(arquivo);
+	
+	return achou;
+}
+
+bool check_produto_do_pedido(int id, int pedidoID) { // Retorna true se o id pertence ao pedido, false se não
+	FILE *arquivo = fopen("produtos_pedidos.dat", "rb");
+	
+	if(!arquivo) {
+		erro_arquivo();
+		return false;
+	}
+	
+	PRODUTO_PEDIDO temp;
+	bool achou = false;
+	
+	while(fread(&temp, sizeof(PRODUTO_PEDIDO), 1, arquivo)) {
+		if(temp.id == id && temp.pedido_id == pedidoID) {
+			achou = true;
+		}
+	}
+	
+	fclose(arquivo);
+	
+	return achou;
+}
+
+PRODUTO_PEDIDO get_produto_pedido_by_id(int id) {
+	FILE *arquivo = fopen("produtos_pedidos.dat", "rb");
+	
+	PRODUTO_PEDIDO temp;
+	
+	if(!arquivo) {
+		erro_arquivo();
+		return temp;
+	}
+
+	bool achou = false;
+	
+	while(fread(&temp, sizeof(PRODUTO_PEDIDO), 1, arquivo)) {
+		if(temp.id == id) {
+			achou = true;
+			break;
+		}
+	}
+	
+	fclose(arquivo);
+	
+	return temp;
+}
+
+void update_produto_pedido(PRODUTO_PEDIDO produto) { // Função que atualiza o produto de um pedido no arquivo
+	FILE *arquivo = fopen("produtos_pedidos.dat", "rb+");
+	
+	if(!arquivo) {
+		erro_arquivo();
+		return;
+	}
+	
+	PRODUTO_PEDIDO temp;
+	
+	while(fread(&temp, sizeof(PRODUTO_PEDIDO), 1, arquivo)) {
+		if (temp.id == produto.id) {
+			fseek(arquivo, -sizeof(PRODUTO_PEDIDO), SEEK_CUR);
+			fwrite(&produto, sizeof(PRODUTO_PEDIDO), 1, arquivo);
+			break;
+		}
+	}
+	
+	fclose(arquivo);
+}
+
 bool print_produtos_pedido(int pedidoID) {
 	int counter = 0;
-	FILE *arquivo = fopen("produtos_pedidos", "rb");
+	FILE *arquivo = fopen("produtos_pedidos.dat", "rb");
 	PEDIDO pedido = get_pedido_by_id(pedidoID);
 	
 	if(!arquivo){
@@ -1101,7 +1306,7 @@ bool print_produtos_pedido(int pedidoID) {
 	while(fread(&temp, sizeof(PRODUTO_PEDIDO), 1, arquivo)) {
 		if(temp.pedido_id == pedidoID) {
 			PRODUTO produto = get_produto_by_id(temp.produto_id);
-			printf("%s: %d\n", produto.nome, temp.quantidade);
+			printf("%d: %s - %d unidades\n", temp.id, produto.nome, temp.quantidade);
 			counter++;
 		}
 	}
@@ -1115,6 +1320,27 @@ bool print_produtos_pedido(int pedidoID) {
 	}
 	
 	return true;
+}
+
+void print_produto_pedido(int id)  { // Função que exibe na tela um produto do pedido pelo id informado
+	FILE *produtos = fopen("produtos_pedidos.dat", "rb");
+	
+	if(!produtos) {
+		erro_arquivo();
+		return;
+	}
+	
+	PRODUTO_PEDIDO temp;
+	
+	while(fread(&temp, sizeof(PRODUTO_PEDIDO), 1, produtos)) {
+		if(temp.id == id) {
+			PRODUTO produto = get_produto_by_id(temp.produto_id);
+			printf("%d: %s - %d unidades", temp.id, produto.nome, temp.quantidade);
+			break;
+		}
+	}
+	
+	fclose(produtos);
 }
 
 int get_quantidade_nao_finalizada_pedido_by_produto_id(int produtoID) {
@@ -1248,6 +1474,95 @@ bool check_estoque_valido_produtos_pedidos(int pedidoID) {
 	fclose(arquivo);
 	
 	return true;
+}
+
+void apagar_produto_pedido(int pedidoID) {
+	char confirm;
+	
+	int id;
+	bool valido = true;
+	
+	system("cls");
+	
+	do {
+		valido = true;
+			
+		if(!print_produtos_pedido(pedidoID)){
+			return;
+		}
+			
+		printf("\nQual o ID do produto que deseja apagar do pedido? (0 - Voltar)\n");
+		scanf("%d", &id);
+		
+		if(id == 0) {
+			return;
+		}
+		
+		if(!check_produto_pedido_existe(id) || !check_produto_do_pedido(id, pedidoID)) {
+			valor_invalido("Produto inválido!");
+			valido = false;
+		}
+		
+	} while (!valido);
+	
+	system("cls");
+	
+	do {
+		printf("Tem certeza de que deseja excluir permanentemente o seguinte produto? (S - Sim / N - Não)\n\n");
+		print_produto_pedido(id);
+		printf("\n");
+		confirm = toupper(getch());
+		
+		if(confirm != 'S' && confirm != 'N') {
+			opcao_invalida();
+		}
+	} while (confirm != 'S' && confirm != 'N');
+	
+	if(confirm == 'N') {
+		return;
+	} else if (confirm == 'S') {
+		delete_produto_pedido(id);
+	}
+}
+
+void delete_produto_pedido(int id) { // Apaga o produto de pedido do arquivo
+	FILE *arquivo = fopen("produtos_pedidos.dat", "rb"); // Arquivo de produtos de pedidos
+	FILE *temp = fopen("temp.dat", "wb"); // Arquivo temporário para grava os produtos de pedidos sem o que deve ser apagado
+	
+	if(!arquivo || !temp) {
+		erro_arquivo();
+		return;
+	}
+	
+	PRODUTO_PEDIDO produto;
+	bool achou = false;
+	
+	// Lê todos os produtos do arquivo original
+	while(fread(&produto, sizeof(PRODUTO_PEDIDO), 1, arquivo)) {
+		if(produto.id == id) {
+			achou = true; // Encontrou o produto, não gravou em temp
+		} else {
+			fwrite(&produto, sizeof(PRODUTO_PEDIDO), 1, temp); // Os que não tem o id de apagar são passados para temp
+		}
+	}
+	
+	fclose(arquivo);
+	fclose(temp);
+	
+	if(achou) {
+		// Se o pedido foi encontrado e excluído de temp, remove pedidos.dat e renomeia temp.dat para pedidos.dat
+		if (remove("produtos_pedidos.dat") == 0 && rename("temp.dat", "produtos_pedidos.dat") == 0) {
+			printf("\nProduto excluído com sucesso!\n");
+		} else {
+			erro_arquivo();
+		}
+	} else {
+		// Se o produto não foi encontrado
+		printf("\nProduto não encontrado!\n");
+		remove("temp.dat"); // Caso o produto não tenha sido encontrado, apaga temp.dat
+	}
+	
+	getch();
 }
 
 // Funções de ordem de produção
