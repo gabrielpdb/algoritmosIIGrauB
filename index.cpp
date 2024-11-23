@@ -63,7 +63,7 @@ void apagar_produto();
 bool print_produtos();
 void print_um_produto(int id);
 void save_produto(PRODUTO produto);
-void update_produto(PRODUTO produto);
+void update_produto(PRODUTO produto, char action[20]);
 void delete_produto(int id);
 bool check_produto_existe(int id);
 PRODUTO get_produto_by_id(int id);
@@ -71,14 +71,14 @@ PRODUTO get_produto_by_id(int id);
 void novo_pedido();
 void alterar_pedido();
 void apagar_pedido();
-bool print_pedidos();
+bool print_pedidos(char status[20]);
 void print_pedido(int id);
 void save_pedido(PEDIDO pedido);
-void update_pedido(PEDIDO pedido);
+void update_pedido(PEDIDO pedido, char action[20]);
 void delete_pedido(int id);
 bool check_pedido_existe(int id);
 PEDIDO get_pedido_by_id(int id);
-void listar_pedidos();
+void listar_pedidos(char status[20]);
 void finalizar_pedido();
 void end_pedido(int id);
 
@@ -89,19 +89,24 @@ int get_quantidade_nao_finalizada_pedido_by_produto_id(int produtoID);
 void delete_todos_produtos_by_pedido_id(int pedidoID);
 void finaliza_todos_produtos_by_pedido_id(int pedidoID);
 bool check_produto_esta_em_pedido(int produtoID);
+bool check_estoque_valido_produtos_pedidos(int pedidoID);
 
 void gerar_op_by_pedido_id(int pedidoID, char nomeCliente[50]);
-void listar_ops();
+void listar_ops(char status[20]);
 bool check_op_existe(int id);
-bool print_ops();
+bool print_ops(char status[20]);
 void print_op(int id);
-void save_op(ORDEM_PRODUCAO ordem_producao);
 ORDEM_PRODUCAO get_op_by_id(int id);
 void apagar_op();
 void delete_op(int id);
 void finalizar_op();
 void end_op(int id);
+bool check_op_finalizada(int id);
+void update_op(ORDEM_PRODUCAO op, char action[20]);
+void nova_op();
+void save_op(ORDEM_PRODUCAO op);
 
+void cadastrar_produtos_op(int opID, char nome[50]);
 void save_produto_op(int opID, int produtoID, int quantidade);
 int get_quantidade_nao_finalizada_op_by_produto_id(int produtoID);
 bool print_produtos_op(int opID);
@@ -116,11 +121,10 @@ int menu_inicial() {
 	int n;
 	
 	printf("Bem vindo ao %s!\n\n", NOME_PROJETO);
-	printf("Escolha abaixo que área do sistema você deseja acessar: \n");
+	printf("Escolha abaixo que área do sistema você deseja acessar: \n\n");
 	printf("1 - Produtos\n");
-	printf("2 - Estoque\n");
-	printf("3 - Pedidos\n");
-	printf("4 - Ordens de produção\n");
+	printf("2 - Pedidos\n");
+	printf("3 - Ordens de produção\n\n");
 	printf("0 - Sair\n");
 	scanf("%d", &n);
 	
@@ -131,24 +135,11 @@ int menu_produtos() {
 	int n;
 	
 	printf("%s - Produtos\n\n", NOME_PROJETO);
-	printf("O que você deseja fazer agora?\n");
+	printf("O que deseja fazer agora?\n\n");
 	printf("1 - Listar produtos\n");
 	printf("2 - Cadastrar novo produto\n");
 	printf("3 - Atualizar um produto\n");
-	printf("4 - Apagar um produto\n");
-	printf("0 - Voltar\n");
-	scanf("%d", &n);
-	
-	return n;
-}
-
-int menu_estoque() {
-	int n;
-	
-	printf("%s - Estoque\n\n", NOME_PROJETO);
-	printf("O que você deseja fazer agora?\n");
-	printf("1 - Listar estoque\n");
-	printf("2 - Ajustar estoque de produto\n");
+	printf("4 - Apagar um produto\n\n");
 	printf("0 - Voltar\n");
 	scanf("%d", &n);
 	
@@ -159,12 +150,13 @@ int menu_pedidos() {
 	int n;
 	
 	printf("%s - Pedidos\n\n", NOME_PROJETO);
-	printf("O que você deseja fazer agora?\n");
-	printf("1 - Listar pedidos\n");
-	printf("2 - Cadastrar novo pedido\n");
-	printf("3 - Atualizar um pedido\n");
-	printf("4 - Apagar um pedido\n");
-	printf("5 - Finalizar um pedido\n");
+	printf("O que deseja fazer agora?\n\n");
+	printf("1 - Pedidos em produção\n");
+	printf("2 - Pedidos finalizados\n");
+	printf("3 - Cadastrar novo pedido\n");
+	printf("4 - Atualizar um pedido\n");
+	printf("5 - Apagar um pedido\n");
+	printf("6 - Finalizar um pedido\n\n");
 	printf("0 - Voltar\n");
 	scanf("%d", &n);
 	
@@ -175,12 +167,13 @@ int menu_op() {
 	int n;
 	
 	printf("%s - Ordens de produção\n\n", NOME_PROJETO);
-	printf("O que você deseja fazer agora?\n");
-	printf("1 - Listar ordens de produção\n");
-	printf("2 - Cadastrar nova ordem de produção\n");
-	printf("3 - Atualizar uma ordem de produção\n");
-	printf("4 - Apagar uma ordem de produção\n");
-	printf("5 - Finalizar uma ordem de produção\n");
+	printf("O que deseja fazer agora?\n\n");
+	printf("1 - Ordens em produção\n");
+	printf("2 - Ordens finalizadas\n");
+	printf("3 - Cadastrar nova ordem de produção\n");
+	printf("4 - Atualizar uma ordem de produção\n");
+	printf("5 - Apagar uma ordem de produção\n");
+	printf("6 - Finalizar uma ordem de produção\n\n");
 	printf("0 - Voltar\n");
 	scanf("%d", &n);
 	
@@ -193,12 +186,10 @@ void opcao_invalida() {
 }
 
 void valor_invalido(char mensagem[40]) {
-	system("cls");
 	if(strlen(mensagem) > 0) {
-		printf("%s", mensagem);
-		printf("\n\n");
+		printf("\n%s\n", mensagem);
 	}else {
-		printf("Valor inválido, tente novamente!\n\n");	
+		printf("\nValor inválido, tente novamente!\n");	
 	}
 }
 
@@ -289,6 +280,7 @@ void novo_produto() { // Função que pede para o usuário as informações sobre o n
 		gets(novoProduto.nome);
 		
 		if(strlen(novoProduto.nome) <= 0) {
+			system("cls");
 			valor_invalido("Nome não pode ser vazio!");
 		}
 	} while(strlen(novoProduto.nome) <= 0);
@@ -298,6 +290,7 @@ void novo_produto() { // Função que pede para o usuário as informações sobre o n
 		scanf("%d", &novoProduto.estoque);
 		
 		if(novoProduto.estoque < 0) {
+			system("cls");
 			valor_invalido("Estoque não pode ser negativo!");
 		}
 	}while (novoProduto.estoque < 0);
@@ -316,8 +309,12 @@ void alterar_produto() { // Função que pede para o usuário as informações para a
 		return;
 	}
 	
-	printf("\nQual o ID do produto que deseja alterar?\n");
+	printf("\nQual o ID do produto que deseja alterar? (0 - Voltar)\n");
 	scanf("%d", &produto_atualizado.id);
+	
+	if(produto_atualizado.id == 0) {
+		return;
+	}
 	
 	if(!check_produto_existe(produto_atualizado.id)) {
 		printf("\nProduto não encontrado!\n");
@@ -347,7 +344,8 @@ void alterar_produto() { // Função que pede para o usuário as informações para a
 		}
 	} while(produto_atualizado.estoque < 0);
 	
-	update_produto(produto_atualizado);	
+	update_produto(produto_atualizado, "");	
+	getch();
 }
 
 void apagar_produto() { // Função que pede para o usuário qual produto quer apagar
@@ -359,8 +357,12 @@ void apagar_produto() { // Função que pede para o usuário qual produto quer apag
 		return;
 	}
 	
-	printf("\nQual o ID do produto que deseja apagar?\n");
+	printf("\nQual o ID do produto que deseja apagar? (0 - Voltar)\n");
 	scanf("%d", &id);
+	
+	if(id == 0) {
+		return;
+	}
 	
 	if(!check_produto_existe(id)) {
 		printf("\nProduto não encontrado!\n");
@@ -397,6 +399,7 @@ void apagar_produto() { // Função que pede para o usuário qual produto quer apag
 	} else if(confirm == 'S') {
 		delete_produto(id);
 	}
+	getch();
 }
 
 void save_produto(PRODUTO produto) { // Função que salva um produto no arquivo
@@ -435,7 +438,7 @@ bool check_produto_existe(int id) { // Retorna true se encontrar o id no arquivo
 	return achou;
 }
 
-void update_produto(PRODUTO produto) { // Função que atualiza um produto no arquivo
+void update_produto(PRODUTO produto, char action[20]) { // Função que atualiza um produto no arquivo
 	FILE *arquivo = fopen("produtos.dat", "rb+");
 	
 	if(!arquivo) {
@@ -455,12 +458,14 @@ void update_produto(PRODUTO produto) { // Função que atualiza um produto no arqu
 		}
 	}
 	
-	if(achou) {
+	if(achou && strcmp(action, "Finalizar") == 0) {
+		
+	}
+	else if (achou) {
 		printf("\nProduto atualizado com sucesso!\n");
 	}else {
 		printf("\nProduto não encontrado!\n");
 	}
-	getch();
 	
 	fclose(arquivo);
 }
@@ -505,8 +510,6 @@ void delete_produto(int id) { // Função que apaga um produto do arquivo
 		printf("\nProduto não encontrado!\n");
 		remove("temp.dat"); // Remove o arquivo temporário caso o produto não tenha sido encontrado
 	}
-	
-	getch();
 }
 
 bool print_produtos() { // Exibe na tela os produtos do arquivo de produtos
@@ -585,15 +588,15 @@ PRODUTO get_produto_by_id(int id) {
 
 // Funções de pedido
 
-void listar_pedidos() {
+void listar_pedidos(char status[20]) {
 	int pedidoID;
 	
 	do {
-		if(!print_pedidos()) {
+		if(!print_pedidos(status)) {
 			return;
 		}
 		
-		printf("Qual pedido você deseja visualizar? (0 - Sair)\n");
+		printf("\nQual pedido você deseja visualizar? (0 - Voltar)\n");
 		scanf("%d", &pedidoID);
 		
 		if(!check_pedido_existe(pedidoID)) {
@@ -646,9 +649,6 @@ void novo_pedido() { // Função que pede para o usuário as informações sobre o no
 	
 	save_pedido(novoPedido); // Envia o pedido para ser salvo;
 	
-	system("cls");
-	printf("Produtos do pedido %d - %s:\n\n", novoPedido.id, novoPedido.nome_cliente); 
-	
 	cadastrar_produtos_pedido(novoPedido.id, novoPedido.nome_cliente);
 	
 	gerar_op_by_pedido_id(novoPedido.id, novoPedido.nome_cliente);
@@ -658,12 +658,16 @@ void alterar_pedido() { // Função que pede para o usuário as informações para at
 	int dia, mes, ano;
 	PEDIDO pedido_atualizado;
 	
-	if(!print_pedidos()){
+	if(!print_pedidos("Todos")){
 		return;
 	}
 	
-	printf("\nQual o ID do pedido que deseja alterar?\n");
+	printf("\nQual o ID do pedido que deseja alterar? (0 - Voltar)\n");
 	scanf("%d", &pedido_atualizado.id);
+	
+	if(pedido_atualizado.id == 0) {
+		return;
+	}
 	
 	if(!check_pedido_existe(pedido_atualizado.id)) {
 		printf("\nPedido não encontrado!\n");
@@ -680,6 +684,7 @@ void alterar_pedido() { // Função que pede para o usuário as informações para at
 		gets(pedido_atualizado.nome_cliente);
 		
 		if(strlen(pedido_atualizado.nome_cliente) <= 0) {
+			system("cls");
 			valor_invalido("Nome do cliente não pode ser vazio!");
 		}
 	} while(strlen(pedido_atualizado.nome_cliente) <= 0);
@@ -689,6 +694,7 @@ void alterar_pedido() { // Função que pede para o usuário as informações para at
 		scanf("%d/%d/%d", &dia, &mes, &ano);
         
         if((dia <= 0 || dia > 31) || (mes <= 0 || mes > 12)) {
+        	system("cls");
         	valor_invalido("Data inválida");
 		}
 		
@@ -700,21 +706,24 @@ void alterar_pedido() { // Função que pede para o usuário as informações para at
 	
 	strcpy(pedido_atualizado.status, get_pedido_by_id(pedido_atualizado.id).status);
 	
-	update_pedido(pedido_atualizado);
+	update_pedido(pedido_atualizado, "");
+	getch();
 }
 
 void apagar_pedido() {
 	int id;
 	char confirm;
 	
-	if(!print_pedidos()) {
-		
-		
+	if(!print_pedidos("Todos")) {
 		return;
 	}
 	
-	printf("\nQual o ID do pedido que deseja apagar?\n");
+	printf("\nQual o ID do pedido que deseja apagar? (0 - Voltar)\n");
 	scanf("%d", &id);
+	
+	if(id == 0) {
+		return;
+	}
 	
 	if(!check_pedido_existe(id)) {
 		printf("\nPedido não encontrado!\n");
@@ -846,7 +855,7 @@ void delete_pedido(int id) { // Apaga o pedido do arquivo
 	getch();
 }
 
-void update_pedido(PEDIDO pedido) { // Função que atualiza um pedido no arquivo
+void update_pedido(PEDIDO pedido, char action[20]) { // Função que atualiza um pedido no arquivo
 	FILE *arquivo = fopen("pedidos.dat", "rb+");
 	
 	if(!arquivo) {
@@ -866,17 +875,19 @@ void update_pedido(PEDIDO pedido) { // Função que atualiza um pedido no arquivo
 		}
 	}
 	
-	if(achou) {
+	if(achou && strcmp(action, "Finalizar") == 0) {
+		
+	}
+	else if (achou) {
 		printf("\nPedido atualizado com sucesso!\n");
 	}else {
 		printf("\nPedido não encontrado!\n");
 	}
-	getch();
 	
 	fclose(arquivo);
 }
 
-bool print_pedidos() { // Função que lista em tela todos os pedidos
+bool print_pedidos(char status[20]) { // Função que lista em tela todos os pedidos
 	int counter = 0;
 	FILE *arquivo = fopen("pedidos.dat", "rb");
 	
@@ -892,10 +903,17 @@ bool print_pedidos() { // Função que lista em tela todos os pedidos
 	printf("Lista de pedidos cadastrados: \n\n");
 	
 	while(fread(&pedido, sizeof(PEDIDO), 1, arquivo)) {
-		printf("%d: %s - ", pedido.id, pedido.nome_cliente);
-		printDate(pedido.data_entrega);
-		printf(" - %s\n", pedido.status);
-		counter++;
+		if(strcmp(pedido.status, status) == 0) {
+			printf("%d: %s - ", pedido.id, pedido.nome_cliente);
+			printDate(pedido.data_entrega);
+			printf(" - %s\n", pedido.status);
+			counter++;			
+		} else if (strcmp(status, "Todos") == 0) {
+			printf("%d: %s - ", pedido.id, pedido.nome_cliente);
+			printDate(pedido.data_entrega);
+			printf(" - %s\n", pedido.status);
+			counter++;	
+		}
 	}
 	
 	fclose(arquivo);
@@ -955,12 +973,16 @@ void finalizar_pedido() {
 	int id;
 	char confirm;
 	
-	if(!print_pedidos()) {
+	if(!print_pedidos("Em produção")) {
 		return;
 	}
 	
-	printf("\nQual o ID do pedido que deseja finalizar?\n");
+	printf("\nQual o ID do pedido que deseja finalizar? (0 - Voltar)\n");
 	scanf("%d", &id);
+	
+	if(id == 0) {
+		return;
+	}
 	
 	if(!check_pedido_existe(id)) {
 		printf("\Pedido não encontrado!\n");
@@ -984,7 +1006,13 @@ void finalizar_pedido() {
 	if(confirm == 'N') {
 		return;
 	} else if (confirm == 'S') {
-		end_pedido(id);
+		if(check_estoque_valido_produtos_pedidos(id)){
+			end_pedido(id);	
+		} else {
+			valor_invalido("Estoque insuficiente para o pedido escolhido!");
+			getch();
+		}
+		
 	}
 }
 
@@ -992,7 +1020,7 @@ void end_pedido(int id) { // Finaliza o pedido e atualiza o estoque
 	// Muda o status do pedido para Finalizado
 	PEDIDO pedido = get_pedido_by_id(id);
 	strcpy(pedido.status, "Finalizado");
-	update_pedido(pedido);
+	update_pedido(pedido, "Finalizar");
 	
 	finaliza_todos_produtos_by_pedido_id(id);
 	
@@ -1016,6 +1044,7 @@ void cadastrar_produtos_pedido(int pedidoID, char nomeCliente[50]) {
 		if(produtoID == 0) {
 			break;
 		} else if(!check_produto_existe(produtoID)) {
+			system("cls");
 			valor_invalido("Produto não existe, informe um ID válido!");
 		} else {
 			do {
@@ -1023,6 +1052,7 @@ void cadastrar_produtos_pedido(int pedidoID, char nomeCliente[50]) {
 				scanf("%d", &quantidade);
 				
 				if(quantidade <= 0) {
+					system("cls");
 					valor_invalido("Informe uma quantidade válida!");
 				}
 			} while (quantidade <= 0);
@@ -1155,7 +1185,7 @@ void finaliza_todos_produtos_by_pedido_id(int pedidoID) {
 			// Atualiza o estoque do produto com a quantidade do pedido
 			PRODUTO produto_estoque = get_produto_by_id(produto.produto_id);
 			produto_estoque.estoque = produto_estoque.estoque - produto.quantidade;
-			update_produto(produto_estoque);
+			update_produto(produto_estoque, "Finalizar");
 			
 			produto.finalizado = true; // Finaliza os produtos do pedido
 		}
@@ -1197,10 +1227,39 @@ bool check_produto_esta_em_pedido(int produtoID) { // Retorna true se o produto 
 	return achou;
 }
 
+bool check_estoque_valido_produtos_pedidos(int pedidoID) {
+	FILE *arquivo = fopen("produtos_pedidos.dat", "rb");
+	
+	if(!arquivo) {
+		erro_arquivo();
+		return false;
+	}
+	
+	PRODUTO_PEDIDO temp;
+	
+	while(fread(&temp, sizeof(PRODUTO_PEDIDO), 1, arquivo)) {
+		PRODUTO produto = get_produto_by_id(temp.produto_id);
+		if(produto.estoque < temp.quantidade) {
+			return false;
+		}
+	}
+	
+	
+	fclose(arquivo);
+	
+	return true;
+}
+
 // Funções de ordem de produção
 
 void gerar_op_by_pedido_id(int pedidoID, char nomeCliente[50]) {
+	int counter = 0;
 	FILE *produtos_pedidos = fopen("produtos_pedidos.dat", "rb");
+	
+	if(!produtos_pedidos) {
+		erro_arquivo();
+		return;
+	}
 	
 	ORDEM_PRODUCAO nova_op;
 	
@@ -1208,13 +1267,6 @@ void gerar_op_by_pedido_id(int pedidoID, char nomeCliente[50]) {
 	nova_op.id++;
 	strcpy(nova_op.status, "Em produção");
 	sprintf(nova_op.nome, "%s(%d)", nomeCliente, pedidoID);
-	
-	save_op(nova_op);
-	
-	if(!produtos_pedidos) {
-		erro_arquivo();
-		return;
-	}
 	
 	PRODUTO_PEDIDO temp_produto_pedido;
 	
@@ -1226,9 +1278,14 @@ void gerar_op_by_pedido_id(int pedidoID, char nomeCliente[50]) {
 			int quantidade = pedidos - estoque - ops;
 			if(quantidade > 0) {
 				save_produto_op(nova_op.id, temp_produto_pedido.produto_id, quantidade);
+				counter++;
 			}
 			
 		}
+	}
+	
+	if(counter > 0) {
+		save_op(nova_op);
 	}
 	
 	fclose(produtos_pedidos);
@@ -1236,18 +1293,61 @@ void gerar_op_by_pedido_id(int pedidoID, char nomeCliente[50]) {
 	return;
 }
 
-void listar_ops() {
+void nova_op() { // Função que pede para o usuário as informações sobre a nova ordem de produção
+	ORDEM_PRODUCAO novaOp;
+	
+	system("cls");
+	
+	do {
+		printf("Informe o nome da ordem de produção: ");
+		fflush(stdin);
+		gets(novaOp.nome);
+		
+		if(strlen(novaOp.nome) <= 0) {
+			valor_invalido("Nome da ordem de produção não pode ser vazio!");
+		}
+	} while(strlen(novaOp.nome) <= 0);
+		
+	strcpy(novaOp.status, "Em produção");
+	
+	novaOp.id = get_increment("ordem_producao"); // Pega o último valor do incremento
+	novaOp.id++; // Incrementa o incremento
+	
+	save_op(novaOp); // Envia a ordem para ser salva
+	
+	cadastrar_produtos_op(novaOp.id, novaOp.nome);
+}
+
+void save_op(ORDEM_PRODUCAO op) { // Função que salva a ordem de produção no arquivo
+	FILE *arquivo = fopen("ordens_producao.dat", "ab");
+	
+	if(!arquivo) {
+		erro_arquivo();
+		return;
+	}
+	
+	fwrite(&op, sizeof(ORDEM_PRODUCAO), 1, arquivo);
+	fclose(arquivo);
+	save_increment("ordem_producao", op.id);
+}
+
+void listar_ops(char status[20]) {
 	int opID;
 	
 	do {
-		if(!print_ops()) {
+		if(!print_ops(status)) {
 			return;
 		}
 		
-		printf("Qual ordem de produção deseja visualizar? (0 - Sair)\n");
+		printf("\nQual ordem de produção deseja visualizar? (0 - Voltar)\n");
 		scanf("%d", &opID);
 		
+		if(opID == 0) {
+			return;
+		}
+		
 		if(!check_op_existe(opID)) {
+			system("cls");
 			valor_invalido("Informe uma ordem de produção válida!");
 		} else {
 			system("cls");
@@ -1262,7 +1362,6 @@ bool check_op_existe(int id) {
 	FILE *arquivo = fopen("ordens_producao.dat", "rb");
 	
 	if(!arquivo) {
-		printf("aqui");
 		erro_arquivo();
 		return false;
 	}
@@ -1282,7 +1381,29 @@ bool check_op_existe(int id) {
 	return achou;
 }
 
-bool print_ops() { // Função que lista em tela todas as ordens de produção
+bool check_op_finalizada(int id) {
+	FILE *arquivo = fopen("ordens_producao.dat", "rb");
+	
+	if(!arquivo) {
+		erro_arquivo();
+		return false;
+	}
+	
+	ORDEM_PRODUCAO temp;
+	
+	while(fread(&temp, sizeof(ORDEM_PRODUCAO), 1, arquivo)) {
+		if(temp.id == id && strcmp("Finalizada", temp.status) == 0) {
+			printf("%s", temp.status);
+			return true;
+		}
+	}
+	
+	fclose(arquivo);
+	
+	return false;
+}
+
+bool print_ops(char status[20]) { // Função que lista em tela todas as ordens de produção
 	int counter = 0;
 	FILE *arquivo = fopen("ordens_producao.dat", "rb");
 	
@@ -1298,8 +1419,13 @@ bool print_ops() { // Função que lista em tela todas as ordens de produção
 	printf("Lista de ordens de produção cadastradas: \n\n");
 	
 	while(fread(&op, sizeof(ORDEM_PRODUCAO), 1, arquivo)) {
-		printf("%d: %s - %s\n", op.id, op.nome, op.status);
-		counter++;
+		if(strcmp(status, op.status) ==0) {
+			printf("%d: %s - %s\n", op.id, op.nome, op.status);
+			counter++;
+		} else if (strcmp(status, "Todas") == 0) {
+			printf("%d: %s - %s\n", op.id, op.nome, op.status);
+			counter++;
+		}
 	}
 	
 	fclose(arquivo);
@@ -1337,19 +1463,6 @@ void print_op(int id)  { // Função que exibe na tela uma ordem de produção pelo 
 	print_produtos_op(id);
 }
 
-void save_op(ORDEM_PRODUCAO ordem_producao) { // Função que salva a ordem de produção no arquivo
-	FILE *arquivo = fopen("ordens_producao.dat", "ab");
-	
-	if(!arquivo) {
-		erro_arquivo();
-		return;
-	}
-	
-	fwrite(&ordem_producao, sizeof(ORDEM_PRODUCAO), 1, arquivo);
-	fclose(arquivo);
-	save_increment("ordem_producao", ordem_producao.id);
-}
-
 ORDEM_PRODUCAO get_op_by_id(int id) {
 	FILE *arquivo = fopen("ordens_producao.dat", "rb");
 	
@@ -1376,7 +1489,7 @@ ORDEM_PRODUCAO get_op_by_id(int id) {
 	return temp;
 }
 
-void update_op(ORDEM_PRODUCAO op) { // Função que atualiza uma ordem no arquivo
+void update_op(ORDEM_PRODUCAO op, char action[20]) { // Função que atualiza uma ordem no arquivo
 	FILE *arquivo = fopen("ordens_producao.dat", "rb+");
 	
 	if(!arquivo) {
@@ -1396,10 +1509,12 @@ void update_op(ORDEM_PRODUCAO op) { // Função que atualiza uma ordem no arquivo
 		}
 	}
 	
-	if(achou) {
-		printf("\Ordem de produção atualizada com sucesso!\n");
-	}else {
-		printf("\Ordem de produção não encontrada!\n");
+	if(achou && strcmp("Finalizar", action) == 0) {
+		printf("\nOrdem de produção finalizada com sucesso!\n");
+	} else if (achou) {
+		printf("\nOrdem de produção atualizada com sucesso!\n");
+	} else {
+		printf("\nOrdem de produção não encontrada!\n");
 	}
 	getch();
 	
@@ -1410,12 +1525,16 @@ void apagar_op() {
 	int id;
 	char confirm;
 	
-	if(!print_ops()) {
+	if(!print_ops("Todas")) {
 		return;
 	}
 	
-	printf("\nQual o ID da ordem de produção que deseja apagar?\n");
+	printf("\nQual o ID da ordem de produção que deseja apagar? (0 - Voltar)\n");
 	scanf("%d", &id);
+	
+	if(id == 0) {
+		return;
+	}
 	
 	if(!check_op_existe(id)) {
 		printf("\Ordem de produção não encontrada!\n");
@@ -1489,15 +1608,25 @@ void finalizar_op() {
 	int id;
 	char confirm;
 	
-	if(!print_ops()) {
+	if(!print_ops("Em produção")) {
 		return;
 	}
 	
-	printf("\nQual o ID da ordem de produção que deseja finalizar?\n");
+	printf("\nQual o ID da ordem de produção que deseja finalizar? (0 - Voltar)\n");
 	scanf("%d", &id);
+	
+	if(id == 0) {
+		return;
+	}
 	
 	if(!check_op_existe(id)) {
 		printf("\Ordem de produção não encontrada!\n");
+		getch();
+		return;
+	}
+	
+	if(check_op_finalizada(id)) {
+		printf("\Ordem de produção já finalizada!\n");
 		getch();
 		return;
 	}
@@ -1526,7 +1655,7 @@ void end_op(int id) { // Finaliza a ordem de produção e atualiza o estoque
 	// Muda o status da ordem para Finalizada
 	ORDEM_PRODUCAO op = get_op_by_id(id);
 	strcpy(op.status, "Finalizada");
-	update_op(op);
+	update_op(op, "Finalizar");
 	
 	finaliza_todos_produtos_by_op_id(id);
 	
@@ -1534,6 +1663,39 @@ void end_op(int id) { // Finaliza a ordem de produção e atualiza o estoque
 }
 
 // Funções de produtos de ordem de produção
+
+void cadastrar_produtos_op(int opID, char nome[50]) {
+	int produtoID, quantidade;
+	
+	do {
+		system("cls");
+		printf("Produtos da ordem %d - %s:\n\n", opID, nome);
+		
+		print_produtos();
+	
+		printf("\nInforme o ID do produto que deseja inserir na ordem: (0 - Finalizar)\n");
+		scanf("%d", &produtoID);
+		
+		if(produtoID == 0) {
+			break;
+		} else if(!check_produto_existe(produtoID)) {
+			system("cls");
+			valor_invalido("Produto não existe, informe um ID válido!");
+		} else {
+			do {
+				printf("Informe a quantidade: ");
+				scanf("%d", &quantidade);
+				
+				if(quantidade <= 0) {
+					system("cls");
+					valor_invalido("Informe uma quantidade válida!");
+				}
+			} while (quantidade <= 0);
+			
+			save_produto_op(opID, produtoID, quantidade);
+		}		
+	} while (produtoID != 0);
+}
 
 void save_produto_op(int opID, int produtoID, int quantidade) {
 	PRODUTO_ORDEM_PRODUCAO produto;
@@ -1686,7 +1848,7 @@ void finaliza_todos_produtos_by_op_id(int opID) {
 			// Atualiza o estoque do produto com a quantidade da op
 			PRODUTO produto_estoque = get_produto_by_id(produto.produto_id);
 			produto_estoque.estoque = produto_estoque.estoque + produto.quantidade;
-			update_produto(produto_estoque);
+			update_produto(produto_estoque, "Finalizar");
 			
 			produto.finalizado = true; // Finaliza os produtos da ordem em questão
 		}
@@ -1792,14 +1954,24 @@ int main (void) {
 					
 					isValid = true;
 					
-					switch(menu_estoque()) {
+					switch(menu_pedidos()) {
 						case 1:
-							system("cls");
-							print_produtos();
-							getch();
+							listar_pedidos("Em produção");
 							break;
 						case 2:
-							//ajusta estoque produto
+							listar_pedidos("Finalizado");
+							break;
+						case 3:
+							novo_pedido();
+							break;
+						case 4: 
+							alterar_pedido();
+							break;
+						case 5:
+							apagar_pedido();
+							break;
+						case 6:
+							finalizar_pedido();
 							break;
 						case 0:
 							isValid = true;
@@ -1821,56 +1993,23 @@ int main (void) {
 					
 					isValid = true;
 					
-					switch(menu_pedidos()) {
-						case 1:
-							listar_pedidos();
-							break;
-						case 2:
-							novo_pedido();
-							break;
-						case 3: 
-							alterar_pedido();
-							break;
-						case 4:
-							apagar_pedido();
-							break;
-						case 5:
-							finalizar_pedido();
-							break;
-						case 0:
-							isValid = true;
-							repeat = false;
-							break;
-						default:
-							isValid = false;
-					}
-				} while(!isValid || repeat);
-				repeat = true;
-				break;
-			case 4: 
-				do {
-					system("cls");
-		
-					if(!isValid){
-						opcao_invalida();
-					}
-					
-					isValid = true;
-					
 					switch(menu_op()) {
 						case 1:
-							listar_ops();
+							listar_ops("Em produção");
 							break;
 						case 2:
-							//novo
+							listar_ops("Finalizada");
 							break;
 						case 3: 
-							//atualiza
+							nova_op();
 							break;
 						case 4:
-							apagar_op();
+							//alterar_op();
 							break;
 						case 5:
+							apagar_op();
+							break;
+						case 6:
 							finalizar_op();
 							break;
 						case 0:
