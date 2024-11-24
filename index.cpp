@@ -13,7 +13,7 @@
 typedef struct { // Definição de produto
 	int id, estoque;
 	char nome[40];
-	//bool kit;
+	bool kit;
 } PRODUTO;
 
 typedef struct { // Definição dos produtos que compõem um kit
@@ -43,6 +43,7 @@ typedef struct { // Definição dos produtos que compõem uma ordem de procução
 
 typedef struct { // Definição da struct que lida com os auto increments
 	int produto_count;
+	int produto_kit_count;
 	int pedido_count;
 	int produto_pedido_count;
 	int ordem_producao_count;
@@ -53,6 +54,8 @@ typedef struct { // Definição da struct que lida com os auto increments
 
 int menu_inicial();
 int menu_produtos();
+int menu_kits();
+int menu_alterar_kit(PRODUTO kit);
 int menu_estoque();
 int menu_pedidos();
 int menu_alterar_pedido(PEDIDO pedido);
@@ -75,6 +78,32 @@ void update_produto(PRODUTO produto, char action[20]);
 void delete_produto(int id);
 bool check_produto_existe(int id);
 PRODUTO get_produto_by_id(int id);
+
+// Kits
+void listar_kits();
+void novo_kit();
+void alterar_kit();
+void alterar_infos_kit(int id);
+void apagar_kit();
+bool print_kits();
+void print_kit(int id);
+bool check_kit_existe(int id);
+void delete_kit(int id);
+
+// Produtos de kits
+void cadastrar_produtos_kit(int kitID, char nome[50]);
+void save_produto_kit(int kitID, int produtoID, int quantidade);
+void delete_todos_produtos_by_kit_id(int kitID);
+void alterar_produtos_kit(int kitID);
+bool print_produtos_kit(int kitID);
+bool check_produto_kit_existe(int id);
+bool check_produto_do_kit(int id, int kitID);
+PRODUTO_KIT get_produto_kit_by_id(int id);
+void print_produto_kit(int id);
+void update_produto_kit(PRODUTO_KIT kit);
+void delete_produto_kit(int id);
+void apagar_produto_kit(int kitID);
+int get_quantidade_produto_kit(int produtoID, int kitID);
 
 // Pedidos
 void novo_pedido();
@@ -144,6 +173,7 @@ bool check_produto_da_op(int id, int opID);
 bool check_produto_op_existe(int id);
 PRODUTO_ORDEM_PRODUCAO get_produto_op_by_id(int id);
 void print_produto_op(int id);
+void inserir_produtos_kit_na_op(int opID, int kitID, int quantidadeKit);
 
 // Funções
 
@@ -153,8 +183,9 @@ int menu_inicial() {
 	printf("Bem vindo ao %s!\n\n", NOME_PROJETO);
 	printf("Escolha abaixo que área do sistema você deseja acessar: \n\n");
 	printf("1 - Produtos\n");
-	printf("2 - Pedidos\n");
-	printf("3 - Ordens de produção\n\n");
+	printf("2 - Produtos estruturados\n");
+	printf("3 - Pedidos\n");
+	printf("4 - Ordens de produção\n\n");
 	printf("0 - Sair\n");
 	scanf("%d", &n);
 	
@@ -170,6 +201,36 @@ int menu_produtos() {
 	printf("2 - Cadastrar novo produto\n");
 	printf("3 - Atualizar um produto\n");
 	printf("4 - Apagar um produto\n\n");
+	printf("0 - Voltar\n");
+	scanf("%d", &n);
+	
+	return n;
+}
+
+int menu_kits() {
+	int n;
+	
+	printf("%s - Produtos estruturados\n\n", NOME_PROJETO);
+	printf("O que deseja fazer agora?\n\n");
+	printf("1 - Listar produtos estruturado\n");
+	printf("2 - Cadastrar novo produto estruturado\n");
+	printf("3 - Atualizar um produto estruturado\n");
+	printf("4 - Apagar um produto estruturado\n\n");
+	printf("0 - Voltar\n");
+	scanf("%d", &n);
+	
+	return n;
+}
+
+int menu_alterar_kit(PRODUTO kit) {
+	int n;
+	
+	printf("%s - Alterar produto estruturado: %d - %s\n\n", NOME_PROJETO, kit.id, kit.nome);
+	printf("O que deseja fazer agora?\n\n");
+	printf("1 - Alterar nome do produto estruturado\n");
+	printf("2 - Alterar componentes do produto estruturado\n");
+	printf("3 - Adicionar novo componente ao produto estruturado\n");
+	printf("4 - Apagar componente do produto estruturado\n\n");
 	printf("0 - Voltar\n");
 	scanf("%d", &n);
 	
@@ -230,7 +291,7 @@ int menu_alterar_op(ORDEM_PRODUCAO op) {
 	
 	printf("%s - Alterar ordem de produção: %d - %s\n\n", NOME_PROJETO, op.id, op.nome);
 	printf("O que deseja fazer agora?\n\n");
-	printf("1 - Alterar informações da ordem de produção\n");
+	printf("1 - Alterar nome da ordem de produção\n");
 	printf("2 - Alterar produto da ordem de produção\n");
 	printf("3 - Adicionar novo produto a ordem de produção\n");
 	printf("4 - Apagar produto da ordem de produção\n\n");
@@ -254,7 +315,12 @@ void valor_invalido(char mensagem[40]) {
 }
 
 void erro_arquivo() {
-	perror("\nErro ao abrir o arquivo");
+	system("cls");
+	if(strcmp(strerror(errno), "No such file or directory") == 0) {
+		printf("Faça o primeiro cadastro para listar!\n");
+	} else {
+		perror("\nErro ao abrir o arquivo");
+	}
 	system("pause");
 }
 
@@ -280,6 +346,8 @@ int get_increment(char counter[30]) { // Essa função recebe o tipo de dado que s
 	
 	if(strcmp(counter, "produto") == 0)
 		return incremento.produto_count;
+	else if(strcmp(counter, "produto_kit") == 0)
+		return incremento.produto_kit_count;
 	else if(strcmp(counter, "pedido") == 0)
 		return incremento.pedido_count;
 	else if(strcmp(counter, "produto_pedido") == 0)
@@ -306,12 +374,15 @@ void save_increment(char counter[30], int id){ // Essa função recebe o tipo de d
 		incremento.ordem_producao_count = 0;
 		incremento.pedido_count = 0;
 		incremento.produto_count = 0;
+		incremento.produto_kit_count = 0;
 		incremento.produto_ordem_producao_count = 0;
 		incremento.produto_pedido_count = 0;
 	}
 	
 	if(strcmp(counter, "produto") == 0)
 		incremento.produto_count = id;
+	else if(strcmp(counter, "produto_kit") == 0)
+		incremento.produto_kit_count = id;
 	else if(strcmp(counter, "pedido") == 0)
 		incremento.pedido_count = id;
 	else if(strcmp(counter, "produto_pedido") == 0)
@@ -357,6 +428,7 @@ void novo_produto() { // Função que pede para o usuário as informações sobre o n
 	
 	novoProduto.id = get_increment("produto"); // Pega o último valor do incremento
 	novoProduto.id++; // Incrementa o incremento
+	novoProduto.kit = false;
 	
 	save_produto(novoProduto); // Envia o produto para ser salvo
 }
@@ -403,6 +475,8 @@ void alterar_produto() { // Função que pede para o usuário as informações para a
 			valor_invalido("Estoque não pode ser negativo!");
 		}
 	} while(produto_atualizado.estoque < 0);
+	
+	produto_atualizado.kit = false;
 	
 	update_produto(produto_atualizado, "");	
 	getch();
@@ -487,7 +561,7 @@ bool check_produto_existe(int id) { // Retorna true se encontrar o id no arquivo
 	bool achou = false;
 	
 	while(fread(&temp, sizeof(PRODUTO), 1, arquivo)) {
-		if(temp.id == id) {
+		if(temp.id == id && temp.kit == false) {
 			achou = true;
 			break;
 		}
@@ -586,8 +660,10 @@ bool print_produtos() { // Exibe na tela os produtos do arquivo de produtos
 	printf("Lista de produtos cadastrados: \n\n");
 
 	while(fread(&produto, sizeof(PRODUTO), 1, arquivo)) {
-		printf("%d: %s - %d unidades\n", produto.id, produto.nome, produto.estoque);
-		counter++;
+		if(produto.kit == false) {
+			printf("%d: %s - %d unidades\n", produto.id, produto.nome, produto.estoque);
+			counter++;
+		}
 	}
 	
 	fclose(arquivo);
@@ -612,7 +688,7 @@ void print_um_produto(int id) { // Exibe na tela um produto do arquivo filtrado 
 	PRODUTO produto;
 	
 	while(fread(&produto, sizeof(PRODUTO), 1, arquivo)) {
-		if(produto.id == id) {
+		if(produto.id == id && produto.kit == false) {
 			printf("%d: %s - %d unidades\n", produto.id, produto.nome, produto.estoque);
 		}
 	}
@@ -644,6 +720,710 @@ PRODUTO get_produto_by_id(int id) {
 	fclose(arquivo);
 	
 	return temp;
+}
+
+// Funções de kits
+
+void listar_kits() {
+	int kitID;
+	
+	do {
+		if(!print_kits()) {
+			return;
+		}
+		
+		printf("\nQual produto estruturado deseja visualizar? (0 - Voltar)\n");
+		scanf("%d", &kitID);
+		
+		if(kitID == 0) {
+			return;
+		}
+		
+		if(!check_kit_existe(kitID)) {
+			system("cls");
+			valor_invalido("Informe um produto estruturado válido!");
+		} else {
+			system("cls");
+			print_kit(kitID);
+			getch();
+			kitID = 0;
+		}
+	} while (kitID != 0);
+}
+
+void novo_kit() { // Função que pede para o usuário as informações sobre o novo kit
+	PRODUTO novoKit;
+	
+	system("cls");
+	
+	do {
+		printf("Informe o nome do produto estruturado: ");
+		fflush(stdin);
+		gets(novoKit.nome);
+		
+		if(strlen(novoKit.nome) <= 0) {
+			system("cls");
+			valor_invalido("Nome não pode ser vazio!");
+		}
+	} while(strlen(novoKit.nome) <= 0);
+	
+	novoKit.id = get_increment("produto"); // Pega o último valor do incremento
+	novoKit.id++; // Incrementa o incremento
+	novoKit.estoque = 0;
+	novoKit.kit = true;
+	
+	save_produto(novoKit); // Envia o kit para ser salvo
+	
+	cadastrar_produtos_kit(novoKit.id, novoKit.nome);
+}
+
+void alterar_kit() { // Função que pede para o usuário as informações para atualizar um kit
+	bool isValid = true, repeat = true;
+	int id;
+	
+	system("cls");
+	
+	if(!print_kits()) {
+		return;
+	}
+	
+	printf("\nQual o ID do produto estruturado que deseja atualizar? (0 - Voltar)\n");
+	scanf("%d", &id);
+	
+	if(id == 0) {
+		return;
+	}
+	
+	if(!check_kit_existe(id)) {
+		printf("\Produto estruturado não encontrado!\n");
+		getch();
+		return;
+	}
+	
+	PRODUTO kit = get_produto_by_id(id);
+	
+	do {
+		system("cls");
+
+		if(!isValid){
+			opcao_invalida();
+		}
+		
+		isValid = true;
+		
+		switch(menu_alterar_kit(kit)) {
+			case 1:
+				alterar_infos_kit(kit.id);
+				break;
+			case 2:
+				alterar_produtos_kit(kit.id);
+				break;
+			case 3:
+				cadastrar_produtos_kit(kit.id, kit.nome);
+				break;
+			case 4: 
+				apagar_produto_kit(kit.id);
+				break;
+			case 0:
+				isValid = true;
+				repeat = false;
+				break;
+			default:
+				isValid = false;
+		}
+	} while(!isValid || repeat);
+}
+
+void alterar_infos_kit(int id) { // Função que pede para o usuário as informações para atualizar as informações de um kit
+	PRODUTO kit_atualizado = get_produto_by_id(id);
+	
+	system("cls");
+	print_kit(id);
+	
+	do {
+		printf("\nInforme o nome do produto estruturado: ");
+		fflush(stdin);
+		gets(kit_atualizado.nome);
+		
+		if(strlen(kit_atualizado.nome) <= 0) {
+			system("cls");
+			valor_invalido("Nome do produto estruturado não pode ser vazio!");
+		}
+	} while(strlen(kit_atualizado.nome) <= 0);
+	
+	update_produto(kit_atualizado, "");
+	getch();
+}
+
+void alterar_produtos_kit(int kitID) {
+	PRODUTO_KIT produto;
+	int id;
+	bool valido = true;
+	
+	system("cls");
+	
+	do {
+		valido = true;
+			
+		if(!print_produtos_kit(kitID)){
+			return;
+		}
+			
+		printf("\nQual o ID do produto que deseja alterar? (0 - Voltar)\n");
+		scanf("%d", &id);
+		
+		if(id == 0) {
+			return;
+		}
+		
+		if(!check_produto_kit_existe(id) || !check_produto_do_kit(id, kitID)) {
+			system("cls");
+			valor_invalido("Produto inválido!");
+			valido = false;
+		} else {
+			produto = get_produto_kit_by_id(id);
+		}
+		
+	} while (!valido);
+	
+	do {
+		system("cls");
+		print_produto_kit(produto.id);
+		
+		printf("\n\nInforme a quantidade atualizada: ");
+		scanf("%d", &produto.quantidade);
+		
+		if(produto.quantidade <= 0) {
+			system("cls");
+			valor_invalido("Informe uma quantidade válida!");
+		}
+	} while (produto.quantidade <= 0);
+	
+	update_produto_kit(produto);
+}
+
+void apagar_kit() { // Função que pede para o usuário qual kit quer apagar
+	int id;
+	char confirm;
+	
+	system("cls");
+	if(!print_kits()){
+		return;
+	}
+	
+	printf("\nQual o ID do kit que deseja apagar? (0 - Voltar)\n");
+	scanf("%d", &id);
+	
+	if(id == 0) {
+		return;
+	}
+	
+	if(!check_kit_existe(id)) {
+		printf("\Kit não encontrado!\n");
+		getch();
+		return;
+	}
+	
+	if(check_produto_esta_em_pedido(id)) {
+		printf("\Kit está inserido em algum pedido, por isso não pode ser excluído!\n");
+		getch();
+		return;
+	}
+	
+	if(check_produto_esta_em_op(id)) {
+		printf("\Kit está inserido em alguma ordem de produção, por isso não pode ser excluído!\n");
+		getch();
+		return;
+	}
+	
+	system("cls");
+		
+	do {
+		printf("Tem certeza de que deseja excluir permanentemente o seguinte kit? (S - Sim / N - Não)\n");
+		print_kit(id);
+		confirm = toupper(getch());
+		
+		if(confirm != 'S' && confirm != 'N') {
+			opcao_invalida();
+		}
+	} while (confirm != 'S' && confirm != 'N');
+	
+	if(confirm == 'N') {
+		return;
+	} else if(confirm == 'S') {
+		delete_kit(id);
+	}
+	getch();
+}
+
+bool print_kits() { // Exibe na tela os kits do arquivo de produtos
+	int counter = 0;
+	FILE *arquivo = fopen("produtos.dat", "rb");
+	
+	if(!arquivo){
+		erro_arquivo();
+		return false;
+	}
+	
+	PRODUTO kit;
+	
+	printf("Lista de produtos estruturados cadastrados: \n\n");
+
+	while(fread(&kit, sizeof(PRODUTO), 1, arquivo)) {
+		if(kit.kit == true) {
+			printf("%d: %s\n", kit.id, kit.nome);
+			counter++;
+		}
+	}
+	
+	fclose(arquivo);
+	
+	if(counter == 0) {
+		printf("Nenhum produto encontrado!");
+		getch();
+		return false;
+	}
+	
+	return true;
+}
+
+void print_kit(int id) { // Exibe na tela um kit do arquivo filtrado pelo id
+	FILE *arquivo = fopen("produtos.dat", "rb");
+	
+	if(!arquivo) {
+		erro_arquivo();
+		return;
+	}
+	
+	PRODUTO produto;
+	
+	while(fread(&produto, sizeof(PRODUTO), 1, arquivo)) {
+		if(produto.id == id && produto.kit == true) {
+			printf("%d: %s\n", produto.id, produto.nome);
+		}
+	}
+	
+	fclose(arquivo);
+	
+	printf("\nComponentes:\n\n");
+	
+	print_produtos_kit(id);
+}
+
+bool check_kit_existe(int id) { // Retorna true se encontrar o id no arquivo, false se não encontrar
+	FILE *arquivo = fopen("produtos.dat", "rb");
+	
+	if(!arquivo) {
+		erro_arquivo();
+		return false;
+	}
+	
+	PRODUTO temp;
+	bool achou = false;
+	
+	while(fread(&temp, sizeof(PRODUTO), 1, arquivo)) {
+		if(temp.id == id && temp.kit == true) {
+			achou = true;
+			break;
+		}
+	}
+	
+	fclose(arquivo);
+	
+	return achou;
+}
+
+void delete_kit(int id) { // Função que apaga um kit do arquivo
+	FILE *arquivo = fopen("produtos.dat", "rb");
+	FILE *temp = fopen("temp.dat", "wb");
+	
+	if(!arquivo || !temp) {
+		erro_arquivo();
+		return;
+	}
+	
+	PRODUTO produto;
+	bool achou = false;
+	
+	// Lê todos os produtos do arquivo original
+	while(fread(&produto, sizeof(PRODUTO), 1, arquivo)) {
+		if(produto.id == id) {
+			achou = true; // Marca que encontrou o produto
+		} else {
+			fwrite(&produto, sizeof(PRODUTO), 1, temp); // Escreve o produto no arquivo temporário
+		}
+	}
+	
+	fclose(arquivo);
+	fclose(temp);
+	
+	if(achou) {
+		// Se o produto foi encontrado e excluído, renomeia o arquivo temporário para substituir o original
+		if (remove("produtos.dat") == 0) {
+			if (rename("temp.dat", "produtos.dat") == 0) {
+				printf("\nProduto excluído com sucesso!\n");
+			} else {
+				erro_arquivo();
+			}
+		} else {
+			erro_arquivo();
+		}
+	} else {
+		// Se o produto não foi encontrado
+		printf("\nProduto não encontrado!\n");
+		remove("temp.dat"); // Remove o arquivo temporário caso o produto não tenha sido encontrado
+	}
+	
+	delete_todos_produtos_by_kit_id(id);
+	
+	getch();
+}
+
+// Funções de produtos de kits
+
+void cadastrar_produtos_kit(int kitID, char nome[50]) {
+	int produtoID, quantidade;
+	
+	do {
+		system("cls");
+		printf("Produtos do kit %d - %s:\n\n", kitID, nome);
+		
+		print_produtos();
+	
+		printf("\nInforme o ID do produto que deseja inserir no kit: (0 - Finalizar)\n");
+		scanf("%d", &produtoID);
+		
+		if(produtoID == 0) {
+			break;
+		} else if(!check_produto_existe(produtoID)) {
+			system("cls");
+			valor_invalido("Produto não existe, informe um ID válido!");
+		} else {
+			do {
+				printf("Informe a quantidade: ");
+				scanf("%d", &quantidade);
+				
+				if(quantidade <= 0) {
+					system("cls");
+					valor_invalido("Informe uma quantidade válida!");
+				}
+			} while (quantidade <= 0);
+			
+			save_produto_kit(kitID, produtoID, quantidade);
+		}		
+	} while (produtoID != 0);
+}
+
+void save_produto_kit(int kitID, int produtoID, int quantidade) {
+	PRODUTO_KIT produto;
+	produto.id = get_increment("produto_kit");
+	produto.id++;
+	produto.kit_id = kitID;
+	produto.produto_id = produtoID;
+	produto.quantidade = quantidade;
+	
+	FILE *arquivo = fopen("produtos_kits.dat", "ab");
+	
+	if(!arquivo) {
+		erro_arquivo();
+		return;
+	}
+	
+	fwrite(&produto, sizeof (PRODUTO_KIT), 1, arquivo);
+	fclose(arquivo);
+	save_increment("produto_kit", produto.id);
+}
+
+void delete_todos_produtos_by_kit_id(int kitID) {
+	FILE *arquivo = fopen("produtos_kits.dat", "rb"); // Arquivo de produtos de kits
+	FILE *temp = fopen("temp.dat", "wb"); // Arquivo temporário para gravar produtos que não devem ser apagados
+	
+	if(!arquivo || !temp) {
+		erro_arquivo();
+		return;
+	}
+	
+	PRODUTO_KIT produto;
+	
+	// Lê todos os pedidos do arquivo original
+	while(fread(&produto, sizeof(PRODUTO_KIT), 1, arquivo)) {
+		if(produto.kit_id != kitID) {
+			fwrite(&produto, sizeof(PRODUTO_KIT), 1, temp); // Os que não tem o id de apagar são passados para temp
+		}
+	}
+	
+	fclose(arquivo);
+	fclose(temp);
+	
+	// Remove produtos_pedidos.dat e renomeia temp.dat para produtos_pedidos.dat
+	if (remove("produtos_kits.dat") == 0 && rename("temp.dat", "produtos_kits.dat") == 0) {
+	} else {
+		erro_arquivo();
+	}
+	
+	getch();
+}
+
+bool print_produtos_kit(int kitID) {
+	int counter = 0;
+	FILE *arquivo = fopen("produtos_kits.dat", "rb");
+	PRODUTO kit = get_produto_by_id(kitID);
+	
+	if(!arquivo){
+		erro_arquivo();
+		return false;
+	}
+	
+	PRODUTO_KIT temp;
+	
+	while(fread(&temp, sizeof(PRODUTO_KIT), 1, arquivo)) {
+		if(temp.kit_id == kitID) {
+			PRODUTO produto = get_produto_by_id(temp.produto_id);
+			printf("%d: %s - %d unidades\n", temp.id, produto.nome, temp.quantidade);
+			counter++;
+		}
+	}
+	
+	fclose(arquivo);
+	
+	if(counter == 0) {
+		printf("Nenhum produto encontrado!");
+		getch();
+		return false;
+	}
+	
+	return true;
+}
+
+bool check_produto_kit_existe(int id) { // Retorna true se encontrar o id no arquivo, false se não encontrar
+	FILE *arquivo = fopen("produtos_kits.dat", "rb");
+	
+	if(!arquivo) {
+		erro_arquivo();
+		return false;
+	}
+	
+	PRODUTO_KIT temp;
+	bool achou = false;
+	
+	while(fread(&temp, sizeof(PRODUTO_KIT), 1, arquivo)) {
+		if(temp.id == id) {
+			achou = true;
+			break;
+		}
+	}
+	
+	fclose(arquivo);
+	
+	return achou;
+}
+
+bool check_produto_do_kit(int id, int kitID) { // Retorna true se o id pertence ao kit, false se não
+	FILE *arquivo = fopen("produtos_kits.dat", "rb");
+	
+	if(!arquivo) {
+		erro_arquivo();
+		return false;
+	}
+	
+	PRODUTO_KIT temp;
+	bool achou = false;
+	
+	while(fread(&temp, sizeof(PRODUTO_KIT), 1, arquivo)) {
+		if(temp.id == id && temp.kit_id == kitID) {
+			achou = true;
+		}
+	}
+	
+	fclose(arquivo);
+	
+	return achou;
+}
+
+PRODUTO_KIT get_produto_kit_by_id(int id) {
+	FILE *arquivo = fopen("produtos_kits.dat", "rb");
+	
+	PRODUTO_KIT temp;
+	
+	if(!arquivo) {
+		erro_arquivo();
+		return temp;
+	}
+
+	bool achou = false;
+	
+	while(fread(&temp, sizeof(PRODUTO_KIT), 1, arquivo)) {
+		if(temp.id == id) {
+			achou = true;
+			break;
+		}
+	}
+	
+	fclose(arquivo);
+	
+	return temp;
+}
+
+void print_produto_kit(int id)  { // Função que exibe na tela um produto de kit pelo id informado
+	FILE *produtos = fopen("produtos_kits.dat", "rb");
+	
+	if(!produtos) {
+		erro_arquivo();
+		return;
+	}
+	
+	PRODUTO_KIT temp;
+	
+	while(fread(&temp, sizeof(PRODUTO_KIT), 1, produtos)) {
+		if(temp.id == id) {
+			PRODUTO produto = get_produto_by_id(temp.produto_id);
+			printf("%d: %s - %d unidades", temp.id, produto.nome, temp.quantidade);
+			break;
+		}
+	}
+	
+	fclose(produtos);
+}
+
+void update_produto_kit(PRODUTO_KIT kit) { // Função que atualiza um produto do kit no arquivo
+	FILE *arquivo = fopen("produtos_kits.dat", "rb+");
+	
+	if(!arquivo) {
+		erro_arquivo();
+		return;
+	}
+	
+	PRODUTO_KIT temp;
+	bool achou = false;
+	
+	while(fread(&temp, sizeof(PRODUTO_KIT), 1, arquivo)) {
+		if (temp.id == kit.id) {
+			fseek(arquivo, -sizeof(PRODUTO_KIT), SEEK_CUR);
+			fwrite(&kit, sizeof(PRODUTO_KIT), 1, arquivo);
+			achou = true;
+			break;
+		}
+	}
+	
+	if(achou) {
+		printf("\Produto atualizado com sucesso!\n");
+	}else {
+		printf("\Produto não encontrado!\n");
+	}
+	
+	fclose(arquivo);
+}
+
+void apagar_produto_kit(int kitID) {
+	char confirm;
+	
+	int id;
+	bool valido = true;
+	
+	system("cls");
+	
+	do {
+		valido = true;
+			
+		if(!print_produtos_kit(kitID)){
+			return;
+		}
+			
+		printf("\nQual o ID do produto que deseja apagar do produto estruturado? (0 - Voltar)\n");
+		scanf("%d", &id);
+		
+		if(id == 0) {
+			return;
+		}
+		
+		if(!check_produto_kit_existe(id) || !check_produto_do_kit(id, kitID)) {
+			valor_invalido("Produto inválido!");
+			valido = false;
+		}
+		
+	} while (!valido);
+	
+	system("cls");
+	
+	do {
+		printf("Tem certeza de que deseja excluir permanentemente o seguinte produto? (S - Sim / N - Não)\n\n");
+		print_produto_kit(id);
+		printf("\n");
+		confirm = toupper(getch());
+		
+		if(confirm != 'S' && confirm != 'N') {
+			opcao_invalida();
+		}
+	} while (confirm != 'S' && confirm != 'N');
+	
+	if(confirm == 'N') {
+		return;
+	} else if (confirm == 'S') {
+		delete_produto_kit(id);
+	}
+}
+
+void delete_produto_kit(int id) { // Apaga o produto do kit do arquivo
+	FILE *arquivo = fopen("produtos_kits.dat", "rb"); // Arquivo de produtos de kits
+	FILE *temp = fopen("temp.dat", "wb"); // Arquivo temporário para grava os produtos de kits sem o que deve ser apagado
+	
+	if(!arquivo || !temp) {
+		erro_arquivo();
+		return;
+	}
+	
+	PRODUTO_KIT produto;
+	bool achou = false;
+	
+	// Lê todos os produtos do arquivo original
+	while(fread(&produto, sizeof(PRODUTO_KIT), 1, arquivo)) {
+		if(produto.id == id) {
+			achou = true; // Encontrou o produto, não gravou em temp
+		} else {
+			fwrite(&produto, sizeof(PRODUTO_KIT), 1, temp); // Os que não tem o id de apagar são passados para temp
+		}
+	}
+	
+	fclose(arquivo);
+	fclose(temp);
+	
+	if(achou) {
+		// Se o pedido foi encontrado e excluído de temp, remove pedidos.dat e renomeia temp.dat para pedidos.dat
+		if (remove("produtos_kits.dat") == 0 && rename("temp.dat", "produtos_kits.dat") == 0) {
+			printf("\nProduto excluído com sucesso!\n");
+		} else {
+			erro_arquivo();
+		}
+	} else {
+		// Se o produto não foi encontrado
+		printf("\nProduto não encontrado!\n");
+		remove("temp.dat"); // Caso o produto não tenha sido encontrado, apaga temp.dat
+	}
+	
+	getch();
+}
+
+int get_quantidade_produto_kit(int produtoID, int kitID) { // Retorna a quantidade se um produto existir no kit, 0 se ele não existir
+	FILE *arquivo = fopen("produtos_kits.dat", "rb");
+	
+	PRODUTO_KIT temp;
+	
+	if(!arquivo) {
+		erro_arquivo();
+		return 0;
+	}
+
+	int quantidade = 0;
+	
+	while(fread(&temp, sizeof(PRODUTO_KIT), 1, arquivo)) {
+		if(temp.produto_id == produtoID && temp.kit_id == kitID) {
+			quantidade = quantidade + temp.quantidade;
+		}
+	}
+	
+	fclose(arquivo);
+	
+	return quantidade;
 }
 
 // Funções de pedido
@@ -752,9 +1532,11 @@ void alterar_pedido() { // Função que pede para o usuário as informações para at
 				break;
 			case 2:
 				alterar_produtos_pedido(pedido.id);
+				gerar_op_by_pedido_id(pedido.id, pedido.nome_cliente);
 				break;
 			case 3:
 				cadastrar_produtos_pedido(pedido.id, pedido.nome_cliente);
+				gerar_op_by_pedido_id(pedido.id, pedido.nome_cliente);
 				break;
 			case 4: 
 				apagar_produto_pedido(pedido.id);
@@ -1134,6 +1916,8 @@ void cadastrar_produtos_pedido(int pedidoID, char nomeCliente[50]) {
 		system("cls");
 		printf("Produtos do pedido %d - %s:\n\n", pedidoID, nomeCliente);
 		
+		print_kits();
+		printf("\n");
 		print_produtos();
 	
 		printf("\nInforme o ID do produto que deseja inserir no pedido: (0 - Finalizar)\n");
@@ -1141,7 +1925,7 @@ void cadastrar_produtos_pedido(int pedidoID, char nomeCliente[50]) {
 		
 		if(produtoID == 0) {
 			break;
-		} else if(!check_produto_existe(produtoID)) {
+		} else if(!check_produto_existe(produtoID) && !check_kit_existe(produtoID)) {
 			system("cls");
 			valor_invalido("Produto não existe, informe um ID válido!");
 		} else {
@@ -1384,8 +2168,14 @@ int get_quantidade_nao_finalizada_pedido_by_produto_id(int produtoID) {
 	PRODUTO_PEDIDO temp;
 	
 	while(fread(&temp, sizeof(PRODUTO_PEDIDO), 1, arquivo)) {
-		if(temp.produto_id == produtoID && temp.finalizado == false) {
-			quantidade = quantidade + temp.quantidade;
+		PRODUTO produto = get_produto_by_id(temp.produto_id);
+
+		if(temp.finalizado == false) {
+			if(temp.produto_id == produtoID && produto.kit == false){
+				quantidade = quantidade + temp.quantidade;
+			} else if (produto.kit == true) {
+				quantidade = quantidade + get_quantidade_produto_kit(produtoID, produto.id);
+			}
 		}
 	}
 	
@@ -1616,16 +2406,28 @@ void gerar_op_by_pedido_id(int pedidoID, char nomeCliente[50]) {
 	PRODUTO_PEDIDO temp_produto_pedido;
 	
 	while(fread(&temp_produto_pedido, sizeof(PRODUTO_PEDIDO), 1, produtos_pedidos)) {
+		PRODUTO produto = get_produto_by_id(temp_produto_pedido.produto_id);
+		
 		if(temp_produto_pedido.pedido_id == pedidoID) {
-			int estoque = get_produto_by_id(temp_produto_pedido.produto_id).estoque;
-			int ops = get_quantidade_nao_finalizada_op_by_produto_id(temp_produto_pedido.produto_id);
-			int pedidos = get_quantidade_nao_finalizada_pedido_by_produto_id(temp_produto_pedido.produto_id);
-			int quantidade = pedidos - estoque - ops;
-			if(quantidade > 0) {
-				save_produto_op(nova_op.id, temp_produto_pedido.produto_id, quantidade);
-				counter++;
+			if(produto.kit == false) {
+				printf("\n\nNÃO É KIT\N\N");
+				getch();
+				int estoque = produto.estoque;
+				int ops = get_quantidade_nao_finalizada_op_by_produto_id(temp_produto_pedido.produto_id);
+				int pedidos = get_quantidade_nao_finalizada_pedido_by_produto_id(temp_produto_pedido.produto_id);
+				int quantidade = pedidos - estoque - ops;
+				if(quantidade > 0 && temp_produto_pedido.finalizado == false) {
+					save_produto_op(nova_op.id, temp_produto_pedido.produto_id, quantidade);
+					counter++;
+				}
+			} else {
+				printf("\n\nÉ KIT\N\N");
+				getch();
+				if(temp_produto_pedido.finalizado == false) {
+					inserir_produtos_kit_na_op(nova_op.id, produto.id, temp_produto_pedido.quantidade);
+					counter++;
+				}
 			}
-			
 		}
 	}
 	
@@ -2537,6 +3339,42 @@ void print_produto_op(int id)  { // Função que exibe na tela um produto da op pe
 	fclose(produtos);
 }
 
+void inserir_produtos_kit_na_op(int opID, int kitID, int quantidadeKit) {
+	FILE *arquivo = fopen("produtos_kits.dat", "rb");
+	
+	PRODUTO_KIT temp;
+	
+	printf("\n%d\n", opID);
+	printf("\n%d\n", kitID);
+	printf("\n%d\n", quantidadeKit);
+	
+	getch();
+	
+	while(fread(&temp, sizeof(PRODUTO_KIT), 1, arquivo)) {
+		if(temp.kit_id == kitID) {
+			PRODUTO produto = get_produto_by_id(temp.produto_id);
+				printf("\n%s\n", produto.nome);
+				getch();
+			int estoque = produto.estoque;
+				printf("\n%d\n", estoque);
+				getch();
+			int ops = get_quantidade_nao_finalizada_op_by_produto_id(produto.id);
+				printf("\n%d\n", ops);
+				getch();
+			int pedidos = get_quantidade_nao_finalizada_pedido_by_produto_id(produto.id);
+				printf("\n%d\n", pedidos);
+				getch();
+			int quantidade = pedidos - estoque - ops;
+				printf("\n%d\n", quantidade);
+				getch();
+			if(quantidade > 0) {
+				save_produto_op(opID, produto.id, temp.quantidade * quantidadeKit);
+			}
+		}
+	}
+	
+	fclose(arquivo);
+}
 
 // MAIN
 
@@ -2592,7 +3430,41 @@ int main (void) {
 				} while(!isValid || repeat);
 				repeat = true;
 				break;
-			case 2: 
+			case 2:
+				do {
+					system("cls");
+		
+					if(!isValid){
+						opcao_invalida();
+					}
+					
+					isValid = true;
+					
+					switch(menu_kits()) {
+						case 1:
+							system("cls");
+							listar_kits();
+							break;
+						case 2:
+							novo_kit();
+							break;
+						case 3: 
+							alterar_kit();
+							break;
+						case 4:
+							apagar_kit();
+							break;
+						case 0:
+							isValid = true;
+							repeat = false;
+							break;
+						default:
+							isValid = false;
+					}
+				} while(!isValid || repeat);
+				repeat = true;
+				break;
+			case 3: 
 				do {
 					system("cls");
 		
@@ -2631,7 +3503,7 @@ int main (void) {
 				} while(!isValid || repeat);
 				repeat = true;
 				break;
-			case 3: 
+			case 4: 
 				do {
 					system("cls");
 		
