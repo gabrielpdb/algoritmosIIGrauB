@@ -173,7 +173,7 @@ bool check_produto_da_op(int id, int opID);
 bool check_produto_op_existe(int id);
 PRODUTO_ORDEM_PRODUCAO get_produto_op_by_id(int id);
 void print_produto_op(int id);
-void inserir_produtos_kit_na_op(int opID, int kitID, int quantidadeKit);
+void inserir_produtos_kit_na_op(int opID, int kitID);
 
 // Funções
 
@@ -1090,7 +1090,7 @@ void cadastrar_produtos_kit(int kitID, char nome[50]) {
 		
 		print_produtos();
 	
-		printf("\nInforme o ID do produto que deseja inserir no kit: (0 - Finalizar)\n");
+		printf("\nInforme o ID do componente que deseja inserir no produto estruturado: (0 - Finalizar)\n");
 		scanf("%d", &produtoID);
 		
 		if(produtoID == 0) {
@@ -2174,7 +2174,7 @@ int get_quantidade_nao_finalizada_pedido_by_produto_id(int produtoID) {
 			if(temp.produto_id == produtoID && produto.kit == false){
 				quantidade = quantidade + temp.quantidade;
 			} else if (produto.kit == true) {
-				quantidade = quantidade + get_quantidade_produto_kit(produtoID, produto.id);
+				quantidade = quantidade + (temp.quantidade * get_quantidade_produto_kit(produtoID, produto.id));
 			}
 		}
 	}
@@ -2410,8 +2410,6 @@ void gerar_op_by_pedido_id(int pedidoID, char nomeCliente[50]) {
 		
 		if(temp_produto_pedido.pedido_id == pedidoID) {
 			if(produto.kit == false) {
-				printf("\n\nNÃO É KIT\N\N");
-				getch();
 				int estoque = produto.estoque;
 				int ops = get_quantidade_nao_finalizada_op_by_produto_id(temp_produto_pedido.produto_id);
 				int pedidos = get_quantidade_nao_finalizada_pedido_by_produto_id(temp_produto_pedido.produto_id);
@@ -2421,10 +2419,8 @@ void gerar_op_by_pedido_id(int pedidoID, char nomeCliente[50]) {
 					counter++;
 				}
 			} else {
-				printf("\n\nÉ KIT\N\N");
-				getch();
 				if(temp_produto_pedido.finalizado == false) {
-					inserir_produtos_kit_na_op(nova_op.id, produto.id, temp_produto_pedido.quantidade);
+					inserir_produtos_kit_na_op(nova_op.id, produto.id);
 					counter++;
 				}
 			}
@@ -3339,36 +3335,21 @@ void print_produto_op(int id)  { // Função que exibe na tela um produto da op pe
 	fclose(produtos);
 }
 
-void inserir_produtos_kit_na_op(int opID, int kitID, int quantidadeKit) {
+void inserir_produtos_kit_na_op(int opID, int kitID) {
 	FILE *arquivo = fopen("produtos_kits.dat", "rb");
 	
 	PRODUTO_KIT temp;
 	
-	printf("\n%d\n", opID);
-	printf("\n%d\n", kitID);
-	printf("\n%d\n", quantidadeKit);
-	
-	getch();
 	
 	while(fread(&temp, sizeof(PRODUTO_KIT), 1, arquivo)) {
 		if(temp.kit_id == kitID) {
 			PRODUTO produto = get_produto_by_id(temp.produto_id);
-				printf("\n%s\n", produto.nome);
-				getch();
 			int estoque = produto.estoque;
-				printf("\n%d\n", estoque);
-				getch();
 			int ops = get_quantidade_nao_finalizada_op_by_produto_id(produto.id);
-				printf("\n%d\n", ops);
-				getch();
 			int pedidos = get_quantidade_nao_finalizada_pedido_by_produto_id(produto.id);
-				printf("\n%d\n", pedidos);
-				getch();
 			int quantidade = pedidos - estoque - ops;
-				printf("\n%d\n", quantidade);
-				getch();
 			if(quantidade > 0) {
-				save_produto_op(opID, produto.id, temp.quantidade * quantidadeKit);
+				save_produto_op(opID, produto.id, quantidade);
 			}
 		}
 	}
